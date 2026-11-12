@@ -23,6 +23,22 @@ npm run build        # type-checks, then bundles to dist/
 npm run preview
 ```
 
+## On your phone (same Wi-Fi)
+
+```bash
+npm run dev:lan      # dev server on 0.0.0.0:5173, hot reload
+npm run lan          # production build served on 0.0.0.0:4173
+```
+
+Vite prints the Network address, e.g. `http://192.168.1.20:5173/`. Open that on the phone.
+
+- On the phone, enter your **Music Assistant** address on the Connect screen using the server's LAN
+  name or IP (e.g. `homeassistant.local:8095`, `192.168.1.20:8095`) — `localhost` there would mean
+  the phone itself.
+- Windows may ask to allow Node.js through the firewall the first time; allow it on private
+  networks. If the phone cannot reach the page, that prompt was likely dismissed.
+- The dev server is reachable by anyone on your network while it runs, so stop it when you are done.
+
 ## Connect
 
 1. Open the app. Enter your Music Assistant address, e.g. `homeassistant.local:8095` or
