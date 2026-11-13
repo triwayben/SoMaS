@@ -14,6 +14,7 @@ import {
   volumeLevelOf,
 } from "../lib/players";
 import { useApp } from "../store";
+import { useVolumeStep } from "../lib/volumeStep";
 
 const SLEEP = [
   { label: "Off", seconds: 0 },
@@ -76,6 +77,7 @@ export function PlayerSettingsContent({
   showHero?: boolean;
 }) {
   const app = useApp();
+  const volumeStep = useVolumeStep();
   const player = app.players[playerId];
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
   const [customOpen, setCustomOpen] = useState(false);
@@ -184,6 +186,7 @@ export function PlayerSettingsContent({
               label={`${player.name} volume`}
               value={level}
               large
+              tapStep={volumeStep}
               onChange={(value) => void app.setVolume(playerId, value)}
             />
             <span className="panel__value">{Math.round(level)}</span>

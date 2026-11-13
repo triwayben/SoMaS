@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Artwork } from "../components/Artwork";
 import { GroupSheet } from "../components/GroupSheet";
 import { Icon } from "../components/Icon";
@@ -10,7 +10,7 @@ import { paletteFromSeed } from "../lib/art";
 import { imageUrl } from "../lib/images";
 import {
   activeSourceLabel,
-  elapsedFor,
+  positionFor,
   groupMembers,
   itemImage,
   itemSeed,
@@ -23,6 +23,7 @@ import {
 import { useTicker } from "../lib/useTicker";
 import { useNav } from "../nav";
 import { useApp } from "../store";
+import { useVolumeStep } from "../lib/volumeStep";
 
 const SLEEP_OPTIONS = [
   { label: "Off", seconds: 0 },
@@ -34,6 +35,7 @@ const SLEEP_OPTIONS = [
 
 export function NowPlaying({ onClose }: { onClose: () => void }) {
   const app = useApp();
+  const volumeStep = useVolumeStep();
   const nav = useNav();
   const player = leaderOf(app.players, app.selectedId);
   const queue = queueFor(app.players, app.queues, app.selectedId);
@@ -49,10 +51,12 @@ export function NowPlaying({ onClose }: { onClose: () => void }) {
   const [inputsOpen, setInputsOpen] = useState(false);
   const [sleepOpen, setSleepOpen] = useState(false);
   const [favs, setFavs] = useState<Record<string, boolean>>({});
+  const rootRef = useRef<HTMLDivElement>(null);
+  const topDrag = useRef<{ y: number; offset: number } | null>(null);
 
   useTicker(playing);
 
-  const elapsed = seekPreview ?? elapsedFor(queue);
+  const elapsed = seekPreview ?? positionFor(player, queue, duration);
   const members = player ? groupMembers(player).filter((id) => app.players[id]) : [];
   const level = volumeLevelOf(player);
   const artUrl = imageUrl(itemImage(current), app.baseUrl, 1024);
@@ -81,8 +85,33 @@ export function NowPlaying({ onClose }: { onClose: () => void }) {
       .catch((err: Error) => app.notify(err.message || "Could not add to favorites"));
   };
 
+  const startTopDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    if ((event.target as HTMLElement).closest("button")) return;
+    topDrag.current = { y: event.clientY, offset: 0 };
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // Synthetic pointer: dragging still works without capture.
+    }
+  };
+
+  const moveTopDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = topDrag.current;
+    if (!drag) return;
+    drag.offset = Math.max(0, event.clientY - drag.y);
+    if (rootRef.current) rootRef.current.style.transform = `translateY(${drag.offset}px)`;
+  };
+
+  const endTopDrag = () => {
+    const drag = topDrag.current;
+    topDrag.current = null;
+    if (!drag) return;
+    if (rootRef.current) rootRef.current.style.transform = "";
+    if (drag.offset > 90) onClose();
+  };
+
   return (
-    <div className="np">
+    <div className="np" ref={rootRef}>
       <div
         className="np__bg"
         style={{
@@ -95,7 +124,13 @@ export function NowPlaying({ onClose }: { onClose: () => void }) {
       <div className="np__scrim" />
 
       <div className="np__content">
-        <div className="np__top">
+        <div
+          className="np__top"
+          onPointerDown={startTopDrag}
+          onPointerMove={moveTopDrag}
+          onPointerUp={endTopDrag}
+          onPointerCancel={endTopDrag}
+        >
           <button className="np__icon" onClick={onClose} aria-label="Close Now Playing">
             <Icon name="chevronDown" size={26} />
           </button>
@@ -221,6 +256,7 @@ export function NowPlaying({ onClose }: { onClose: () => void }) {
             label="Volume"
             value={level}
             large
+            tapStep={volumeStep}
             onChange={(value) => player && void app.setVolume(player.player_id, value)}
             formatValue={(value) => `${Math.round(value)}%`}
           />

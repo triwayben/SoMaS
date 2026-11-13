@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "../components/Icon";
 import { loginWithPassword, normalizeBaseUrl } from "../api/mas";
+import { loadSuggestedServer } from "../lib/serverSuggestion";
 import { STORAGE, useApp } from "../store";
 
 type Mode = "token" | "password";
@@ -16,6 +17,19 @@ export function ConnectScreen() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
+  const serverTouched = useRef(false);
+
+  // Suggest the address this build was pointed at, so nobody has to type it per device.
+  useEffect(() => {
+    let cancelled = false;
+    void loadSuggestedServer().then((suggested) => {
+      if (cancelled || !suggested || serverTouched.current) return;
+      setServer((current) => (current.trim() ? current : suggested));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const connecting = app.phase === "connecting" || busy;
 
@@ -60,7 +74,10 @@ export function ConnectScreen() {
             <span>Music Assistant address</span>
             <input
               value={server}
-              onChange={(event) => setServer(event.target.value)}
+              onChange={(event) => {
+                serverTouched.current = true;
+                setServer(event.target.value);
+              }}
               placeholder="homeassistant.local:8095"
               autoCapitalize="none"
               autoCorrect="off"

@@ -306,6 +306,16 @@ const paths: Record<string, ReactNode> = {
       <path d="M8.4 8h.01M8.4 12h.01M8.4 16h.01M15.6 8h.01M15.6 12h.01M15.6 16h.01" />
     </>
   ),
+  // Three tiles with one empty slot and an arrow moving a tile into it.
+  arrange: (
+    <>
+      <rect x="3.2" y="3.2" width="7.2" height="7.2" rx="2" />
+      <rect x="13.6" y="3.2" width="7.2" height="7.2" rx="2" />
+      <rect x="3.2" y="13.6" width="7.2" height="7.2" rx="2" />
+      <path d="M10.9 17.9c2.7.3 4.9-.9 6.1-3" />
+      <path d="M19.4 12.9l-1 4.4-4.4-1.1z" fill="currentColor" stroke="none" />
+    </>
+  ),
 };
 
 export type IconName = keyof typeof paths;

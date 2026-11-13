@@ -3,16 +3,19 @@ import { CoverGlow } from "./CoverGlow";
 import { Icon } from "./Icon";
 import { Slider } from "./Slider";
 import {
-  elapsedFor,
   groupMembers,
   itemImage,
   itemSeed,
   itemTitle,
   leaderOf,
+  playbackState,
+  positionFor,
   queueFor,
   volumeLevelOf,
 } from "../lib/players";
 import { useApp } from "../store";
+import { useTicker } from "../lib/useTicker";
+import { useVolumeStep } from "../lib/volumeStep";
 
 interface PlayerBubbleProps {
   onOpen: () => void;
@@ -26,12 +29,15 @@ interface PlayerBubbleProps {
  */
 export function PlayerBubble({ onOpen, onQueue, onSettings }: PlayerBubbleProps) {
   const app = useApp();
+  const volumeStep = useVolumeStep();
   const player = leaderOf(app.players, app.selectedId);
   const queue = queueFor(app.players, app.queues, app.selectedId);
   const current = queue?.current_item;
-  const playing = queue?.state === "playing";
+  const playing = playbackState(player) === "playing" || queue?.state === "playing";
   const duration = current?.duration ?? 0;
-  const elapsed = elapsedFor(queue);
+  // Re-render once a second so the bar advances even between server updates.
+  useTicker(playing);
+  const elapsed = positionFor(player, queue, duration);
   const progress = duration > 0 ? Math.min(100, (elapsed / duration) * 100) : 0;
   const level = volumeLevelOf(player);
   const muted = Boolean(player?.volume_muted);
@@ -132,6 +138,7 @@ export function PlayerBubble({ onOpen, onQueue, onSettings }: PlayerBubbleProps)
           label="Volume"
           value={level}
           large
+          tapStep={volumeStep}
           onChange={(value) => player && void app.setVolume(player.player_id, value)}
           formatValue={(value) => `${Math.round(value)}%`}
         />

@@ -87,6 +87,11 @@ export function volumeLevelOf(player?: Player | null): number {
   return player.volume_level ?? 0;
 }
 
+/** Servers may identify cached art by proxy id alone, with no path. */
+function hasImage(image?: ImageInfo | null): image is ImageInfo {
+  return Boolean(image && (image.path || image.proxy_id));
+}
+
 export function itemImage(item?: QueueItem | ItemMapping | MediaItem | null): ImageInfo | undefined {
   if (!item) return undefined;
   const queueItem = item as QueueItem;
@@ -100,14 +105,14 @@ export function itemImage(item?: QueueItem | ItemMapping | MediaItem | null): Im
   }
   const media = queueItem.media_item ?? (item as MediaItem);
   if (!media) return undefined;
-  if (media.image?.path) return media.image;
+  if (hasImage(media.image)) return media.image;
   const metadataImages = (media.metadata as { images?: ImageInfo[] } | null | undefined)?.images;
   if (metadataImages?.length) {
     const thumb = metadataImages.find((image) => image.type === "thumb") ?? metadataImages[0];
-    if (thumb?.path) return thumb;
+    if (hasImage(thumb)) return thumb;
   }
-  if (media.album?.image?.path) return media.album.image;
-  if (media.artists?.[0]?.image?.path) return media.artists[0].image;
+  if (hasImage(media.album?.image)) return media.album.image;
+  if (hasImage(media.artists?.[0]?.image)) return media.artists[0].image;
   return undefined;
 }
 
@@ -159,14 +164,71 @@ export function activeSourceLabel(
   return sourceId;
 }
 
+/**
+ * How far a reported position may be carried forward. A reading that has not been refreshed
+ * for longer than this is treated as stale and held, instead of inflating the position by how
+ * long the app has been open.
+ */
+const MAX_EXTRAPOLATION_SECONDS = 10;
+
+function carried(base: number, updated: number | null | undefined, playing: boolean, speed: number) {
+  if (!playing || !updated) return base;
+  // The field is seconds in every payload we have seen; tolerate milliseconds too.
+  const anchor = updated > 1e12 ? updated / 1000 : updated;
+  const age = Date.now() / 1000 - anchor;
+  if (!Number.isFinite(age) || age <= 0) return base;
+  return base + Math.min(age, MAX_EXTRAPOLATION_SECONDS) * speed;
+}
+
+/**
+ * Position reported by the player itself. The server refreshes this every second while playing
+ * (as `player_updated`). Careful: some players report their cumulative stream position, which
+ * keeps counting across tracks, so this value is only trusted while it fits the track.
+ */
+export function elapsedForPlayer(player?: Player | null): number | null {
+  if (!player) return null;
+  const base = player.elapsed_time;
+  if (base == null) return null;
+  return carried(
+    base,
+    player.elapsed_time_last_updated,
+    playbackState(player) === "playing",
+    1,
+  );
+}
+
+/**
+ * Best known playback position, kept inside the current track.
+ *
+ * The queue's position is preferred: Music Assistant keeps it as the position within the current
+ * track, while a player may report its cumulative stream position or a frozen reading. `duration`
+ * is what makes the choice safe - a candidate that does not fit inside the track is skipped, and
+ * the player is used only when no queue position is available.
+ */
+export function positionFor(
+  player?: Player | null,
+  queue?: PlayerQueue | null,
+  duration = 0,
+): number {
+  const candidates = [elapsedFor(queue), elapsedForPlayer(player)].filter(
+    (value): value is number => value != null && Number.isFinite(value),
+  );
+  if (!candidates.length) return 0;
+  const fits = (value: number) => duration > 0 && value <= duration + 1;
+  const chosen = candidates.find(fits) ?? candidates[0];
+  const clamped = duration > 0 ? Math.min(chosen, duration) : chosen;
+  return Math.max(0, clamped);
+}
+
 export function elapsedFor(queue?: PlayerQueue | null): number {
   if (!queue) return 0;
   const base = queue.elapsed_time ?? 0;
   if (queue.state !== "playing") return base;
-  const updated = queue.elapsed_time_last_updated ?? 0;
-  const speed = queue.playback_speed ?? 1;
-  const delta = Math.max(0, Date.now() / 1000 - updated);
-  return base + delta * speed;
+  const updated = queue.elapsed_time_last_updated;
+  // Without an anchor there is nothing to extrapolate from; adding wall-clock time to a zero
+  // anchor would jump the position to the end of the track.
+  if (!updated) return base;
+  return carried(base, updated, true, queue.playback_speed ?? 1);
 }
 
 export function sortRooms(players: Player[]): Player[] {

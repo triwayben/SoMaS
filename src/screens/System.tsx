@@ -20,8 +20,10 @@ import {
   volumeLevelOf,
   volumeTarget,
 } from "../lib/players";
+import { readPref, readPrefJson, writePref, writePrefJson } from "../lib/prefs";
 import { useNav } from "../nav";
 import { useApp } from "../store";
+import { useVolumeStep } from "../lib/volumeStep";
 
 type SortMode = "playing" | "frequent" | "alpha";
 
@@ -34,36 +36,31 @@ const SORT_OPTIONS: Array<{ id: SortMode; label: string }> = [
 const SORT_KEY = "sonos4ma.sort";
 const PIN_KEY = "sonos4ma.pinned";
 const USAGE_KEY = "sonos4ma.usage";
+const SORT_NAME = "sort";
+const PIN_NAME = "pinned";
+const USAGE_NAME = "usage";
 
 function readSort(): SortMode {
-  const raw = localStorage.getItem(SORT_KEY);
+  const raw = readPref(SORT_NAME, SORT_KEY);
   return raw === "frequent" || raw === "alpha" ? raw : "playing";
 }
 
 function saveSort(mode: SortMode) {
-  localStorage.setItem(SORT_KEY, mode);
+  writePref(SORT_NAME, mode);
 }
 
 function readPinned(): string[] {
-  try {
-    const raw = JSON.parse(localStorage.getItem(PIN_KEY) ?? "[]");
-    return Array.isArray(raw) ? raw.filter((value): value is string => typeof value === "string") : [];
-  } catch {
-    return [];
-  }
+  const raw = readPrefJson<string[]>(PIN_NAME, [], PIN_KEY);
+  return Array.isArray(raw) ? raw.filter((value): value is string => typeof value === "string") : [];
 }
 
 function savePinned(ids: string[]) {
-  localStorage.setItem(PIN_KEY, JSON.stringify(ids));
+  writePrefJson(PIN_NAME, ids);
 }
 
 function readUsage(): Record<string, number> {
-  try {
-    const raw = JSON.parse(localStorage.getItem(USAGE_KEY) ?? "{}");
-    return raw && typeof raw === "object" ? (raw as Record<string, number>) : {};
-  } catch {
-    return {};
-  }
+  const raw = readPrefJson<Record<string, number>>(USAGE_NAME, {}, USAGE_KEY);
+  return raw && typeof raw === "object" ? raw : {};
 }
 
 export function SystemScreen() {
@@ -81,6 +78,7 @@ export function SystemScreen() {
   const [optionsFor, setOptionsFor] = useState<string | null>(null);
   const [groupFor, setGroupFor] = useState<string | null>(null);
   const menuBtnRef = useRef<HTMLButtonElement>(null);
+  const volumeStep = useVolumeStep();
   const rooms = topLevelRooms(Object.values(app.players));
   const providers = app.providers;
 
@@ -412,6 +410,7 @@ export function SystemScreen() {
                   label={`${room.name} volume`}
                   value={level}
                   large
+                  tapStep={volumeStep}
                   onChange={(value) => void app.setVolume(volumePlayer.player_id, value)}
                   formatValue={(value) => `${Math.round(value)}%`}
                 />

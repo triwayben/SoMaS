@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { coverUrl, paletteFromSeed } from "../lib/art";
-import { imageUrl } from "../lib/images";
+import { directImageUrl, imageUrl } from "../lib/images";
 import type { ImageInfo } from "../api/types";
 import { STORAGE } from "../store";
 
@@ -20,8 +20,9 @@ interface ArtworkProps {
 }
 
 /**
- * Album art with a deterministic generated fallback. If the server rejects an
- * unauthenticated image request, retry once with the access token and use a blob URL.
+ * Album art served by Music Assistant with a deterministic generated fallback. If the
+ * server cannot serve a remote cover itself, the provider's own URL is tried once, then an
+ * authenticated request, then the generated cover.
  */
 export function Artwork({
   image,
@@ -38,10 +39,12 @@ export function Artwork({
   const [src, setSrc] = useState<string | undefined>(
     primary ? blobCache.get(primary) ?? primary : undefined,
   );
+  const triedDirect = useRef(false);
   const triedAuth = useRef(false);
   const failed = useRef(false);
 
   useEffect(() => {
+    triedDirect.current = false;
     triedAuth.current = false;
     failed.current = false;
     const next = imageUrl(image, baseUrl, requestSize) ?? (seed ? coverUrl(seed) : undefined);
@@ -50,7 +53,15 @@ export function Artwork({
 
   const handleError = async () => {
     if (!primary || failed.current) return;
-    if (triedAuth.current) {
+    // The server proxies remote covers, but a server that cannot fetch one itself answers
+    // with an error, so fall back to the provider's own URL once before giving up.
+    const direct = directImageUrl(primary);
+    if (direct && !triedDirect.current) {
+      triedDirect.current = true;
+      setSrc(direct);
+      return;
+    }
+    if (triedDirect.current || triedAuth.current) {
       failed.current = true;
       setSrc(seed ? coverUrl(seed) : undefined);
       return;
@@ -88,7 +99,15 @@ export function Artwork({
       }}
     >
       {src ? (
-        <img src={src} alt={alt} loading="lazy" decoding="async" onError={handleError} />
+        <img
+          src={src}
+          alt={alt}
+          /* Eager: lazy images can fail to load inside fixed/transformed phone layouts. */
+          loading="eager"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          onError={handleError}
+        />
       ) : null}
     </div>
   );

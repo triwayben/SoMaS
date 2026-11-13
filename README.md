@@ -26,20 +26,51 @@ npm run preview
 ## On your phone (same Wi-Fi)
 
 ```bash
-npm run dev:lan      # dev server on 0.0.0.0:5173, hot reload
-npm run lan          # production build served on 0.0.0.0:4173
+npm run lan          # build, then serve on 0.0.0.0:4173 - the one to use on the phone
+npm run dev:lan      # dev server on 0.0.0.0:5173 with hot reload, for working on it
 ```
 
-Vite prints the Network address, e.g. `http://192.168.1.20:5173/`. Open that on the phone.
+Open the Network address Vite prints (e.g. `http://192.168.1.20:4173/`) on the phone, and add
+that exact address to the home screen once. Then just run `npm run lan` whenever you want the app:
+the port never changes, so the phone keeps its server address, login and settings, and an app that
+is already open reloads itself onto a new build the next time you bring it to the front.
+
+Two things that look like "my changes aren't showing", and how to avoid them:
+
+- **Don't switch ports or addresses.** Login and settings live in browser storage per origin, so
+  `:4173` and `:5173` are separate apps with separate logins, and so is a different IP.
+- **A home screen icon keeps a snapshot of the page it was created from.** If an icon shows an old
+  version after a rebuild, delete it and add it again from the address above.
 
 - On the phone, enter your **Music Assistant** address on the Connect screen using the server's LAN
   name or IP (e.g. `homeassistant.local:8095`, `192.168.1.20:8095`) — `localhost` there would mean
   the phone itself.
 - Windows may ask to allow Node.js through the firewall the first time; allow it on private
   networks. If the phone cannot reach the page, that prompt was likely dismissed.
+
+### Add to the home screen
+
+The app ships a web app manifest (`public/manifest.webmanifest`) and icons, so it opens
+full-screen without browser chrome once added:
+
+- **iPhone / iPad:** share sheet → *Add to Home Screen* in Safari.
+- **Android:** Chrome menu → *Add to Home screen* (a full app install prompt needs HTTPS; over plain
+  `http://` on the LAN Chrome installs it as a shortcut instead).
+
+The manifest icons are generated from `public/icon.svg` by `node scripts/make-icons.mjs`.
 - The dev server is reachable by anyone on your network while it runs, so stop it when you are done.
 
 ## Connect
+
+### Pre-filling the address
+
+The Connect screen suggests a server so it does not have to be typed on every device:
+
+- `public/config.json` holds `{ "server": "homeassistant.local:8095" }`. Edit it at deploy time and every
+  fresh visit to the app starts with that address filled in. It ships in `dist/` with the build.
+- `?server=host:port` on the URL overrides it, handy for testing or a second server.
+- A previously saved address always wins over both, so change it once in the field and the app
+  remembers it on that device.
 
 1. Open the app. Enter your Music Assistant address, e.g. `homeassistant.local:8095` or
    `192.168.1.20:8095` (add `https://` if your webserver uses TLS).

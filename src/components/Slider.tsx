@@ -12,6 +12,8 @@ interface SliderProps {
   large?: boolean;
   className?: string;
   formatValue?: (value: number) => string;
+  /** When set, a tap nudges the value by this much instead of jumping to the tapped spot. */
+  tapStep?: number;
 }
 
 export function Slider({
@@ -26,12 +28,19 @@ export function Slider({
   large = false,
   className = "",
   formatValue,
+  tapStep,
 }: SliderProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
   const [local, setLocal] = useState<number | null>(null);
   const lastSent = useRef(0);
   const pending = useRef<number | null>(null);
+  const press = useRef<{ x: number; moved: boolean } | null>(null);
+  const nudgeTimer = useRef<number | undefined>(undefined);
+  // Transient "+3" / "−3" pill shown where a tap moved the level.
+  const [nudge, setNudge] = useState<{ delta: number; percent: number } | null>(null);
+
+  useEffect(() => () => window.clearTimeout(nudgeTimer.current), []);
 
   const shown = local ?? value;
   const percent = max === min ? 0 : ((shown - min) / (max - min)) * 100;
@@ -84,20 +93,62 @@ export function Slider({
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (disabled) return;
-    event.currentTarget.setPointerCapture(event.pointerId);
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // Synthetic or already-released pointers cannot be captured; dragging still works.
+    }
     setDragging(true);
-    emit(valueFromEvent(event.clientX), true);
+    press.current = { x: event.clientX, moved: tapStep == null };
+    // Sliders without a tap step keep their jump-to-position behaviour.
+    if (tapStep == null) emit(valueFromEvent(event.clientX), true);
   };
 
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!dragging || disabled) return;
+    const current = press.current;
+    if (current && !current.moved) {
+      if (Math.abs(event.clientX - current.x) < 4) return;
+      current.moved = true;
+    }
     emit(valueFromEvent(event.clientX));
+  };
+
+  const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    const current = press.current;
+    press.current = null;
+    if (tapStep != null && current && !current.moved) {
+      // A tap nudges the level one increment towards the tapped side.
+      const rect = trackRef.current?.getBoundingClientRect();
+      const ratio = rect && rect.width ? (event.clientX - rect.left) / rect.width : 0.5;
+      const tapped = min + Math.min(1, Math.max(0, ratio)) * (max - min);
+      const direction = tapped >= shown ? 1 : -1;
+      const next = Math.min(max, Math.max(min, shown + direction * tapStep));
+      setDragging(false);
+      setLocal(next);
+      onChange(next);
+      onCommit?.(next);
+      window.setTimeout(() => setLocal(null), 400);
+      const delta = Math.round(next - shown);
+      if (delta !== 0) {
+        window.clearTimeout(nudgeTimer.current);
+        setNudge({ delta, percent: Math.min(94, Math.max(6, ratio * 100)) });
+        nudgeTimer.current = window.setTimeout(() => setNudge(null), 900);
+      }
+      return;
+    }
+    finish();
+  };
+
+  const handlePointerCancel = () => {
+    press.current = null;
+    finish();
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (disabled) return;
     let next = shown;
-    const jump = Math.max(step, Math.round((max - min) / 20 / step) * step);
+    const jump = tapStep ?? Math.max(step, Math.round((max - min) / 20 / step) * step);
     if (event.key === "ArrowRight" || event.key === "ArrowUp") next = shown + jump;
     else if (event.key === "ArrowLeft" || event.key === "ArrowDown") next = shown - jump;
     else if (event.key === "Home") next = min;
@@ -127,10 +178,19 @@ export function Slider({
       aria-disabled={disabled}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
-      onPointerUp={finish}
-      onPointerCancel={finish}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
       onKeyDown={handleKeyDown}
     >
+      {nudge ? (
+        <span
+          className={`slider__nudge ${nudge.delta > 0 ? "is-up" : "is-down"}`}
+          style={{ left: `${nudge.percent}%` }}
+          aria-hidden="true"
+        >
+          {nudge.delta > 0 ? `+${nudge.delta}` : `−${Math.abs(nudge.delta)}`}
+        </span>
+      ) : null}
       <div className="slider__track" ref={trackRef}>
         <div className="slider__fill" style={{ width: `${Math.max(0, Math.min(100, percent))}%` }} />
         <div

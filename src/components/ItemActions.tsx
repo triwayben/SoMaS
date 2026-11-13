@@ -1,4 +1,5 @@
 import type { ItemMapping, MediaItem } from "../api/types";
+import { copyText } from "../lib/clipboard";
 import { itemSubtitle } from "../lib/players";
 import { usePlayActions } from "../lib/usePlayActions";
 import { useApp } from "../store";
@@ -69,9 +70,10 @@ export function ItemActionsSheet({
         <button
           className="action"
           onClick={() => {
-            if (uri && navigator.clipboard) {
-              void navigator.clipboard.writeText(uri);
-              app.notify("Item link copied");
+            if (uri) {
+              void copyText(uri).then((copied) =>
+                app.notify(copied ? "Item link copied" : "Could not copy the link"),
+              );
             }
             onClose();
           }}

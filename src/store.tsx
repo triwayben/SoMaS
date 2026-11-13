@@ -20,7 +20,8 @@ import type {
   QueueItem,
   ServerInfo,
 } from "./api/types";
-import { queueFor } from "./lib/players";
+import { leaderOf, queueFor } from "./lib/players";
+import { readPrefJson, writePrefJson } from "./lib/prefs";
 
 const STORAGE = {
   server: "sonos4ma.server",
@@ -192,11 +193,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
         });
         return;
       }
-      if (
-        name === "queue_added" ||
-        name === "queue_updated" ||
-        name === "queue_time_updated"
-      ) {
+      if (name === "queue_time_updated") {
+        // Music Assistant sends only the elapsed seconds here, with the queue id as the object
+        // id - not a queue object. Re-anchor the position so the progress bar keeps moving.
+        const seconds =
+          typeof data === "number"
+            ? data
+            : (data as { elapsed_time?: number } | null)?.elapsed_time;
+        const queueId = event.object_id;
+        if (!queueId || typeof seconds !== "number") return;
+        setState((prev) => {
+          const queue = prev.queues[queueId];
+          if (!queue) return prev;
+          return {
+            ...prev,
+            queues: {
+              ...prev.queues,
+              [queueId]: {
+                ...queue,
+                elapsed_time: seconds,
+                elapsed_time_last_updated: Date.now() / 1000,
+              },
+            },
+          };
+        });
+        return;
+      }
+      if (name === "queue_added" || name === "queue_updated") {
         const queue = data as unknown as PlayerQueue;
         if (!queue?.queue_id) return;
         setState((prev) => ({
@@ -268,17 +291,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const connect = useCallback(
     async ({ baseUrl = "", token = "", demo = false, remember = true }: ConnectOptions) => {
       teardown();
+      // Keep one canonical absolute origin in state. Artwork and links are built from it, so a
+      // scheme-less "host:8095" would otherwise resolve against this app's own address.
+      let base = "";
+      if (!demo) {
+        try {
+          base = normalizeBaseUrl(baseUrl);
+        } catch (err) {
+          setState((prev) => ({ ...prev, phase: "error", error: (err as Error).message }));
+          return;
+        }
+      }
       setState(() => ({
         ...initialState,
         phase: "connecting",
         backendKind: demo ? "demo" : "mas",
         connState: "connecting",
-        baseUrl,
+        baseUrl: base,
       }));
 
       let backend: Backend;
       try {
-        backend = demo ? createDemoBackend() : new MasBackend(normalizeBaseUrl(baseUrl), token);
+        backend = demo ? createDemoBackend() : new MasBackend(base, token);
       } catch (err) {
         setState((prev) => ({ ...prev, phase: "error", error: (err as Error).message }));
         return;
@@ -305,7 +339,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const info = await backend.connect();
         await hydrate(backend);
         if (remember && !demo) {
-          localStorage.setItem(STORAGE.server, baseUrl);
+          localStorage.setItem(STORAGE.server, base);
           localStorage.setItem(STORAGE.token, token);
           localStorage.removeItem(STORAGE.demo);
         }
@@ -314,7 +348,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           localStorage.removeItem(STORAGE.server);
           localStorage.removeItem(STORAGE.token);
         }
-        setState((prev) => ({ ...prev, serverInfo: info, baseUrl }));
+        setState((prev) => ({ ...prev, serverInfo: info, baseUrl: base }));
       } catch (err) {
         backend.close();
         backendRef.current = null;
@@ -353,14 +387,111 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Progress watchdog. The position must keep moving even when the server pushes no per-second
+  // update for it (some players only report on state changes), so while something is playing the
+  // app re-reads the clock straight from the server. Events still drive everything else.
+  const anyPlaying = Object.values(state.players).some(
+    (player) => (player.playback_state ?? player.state) === "playing",
+  );
+  const lastSample = useRef<{ queueId: string; base: number; changedAt: number } | null>(null);
+  useEffect(() => {
+    if (state.phase !== "ready" || state.backendKind !== "mas" || !anyPlaying) return;
+    let cancelled = false;
+
+    const refreshPosition = async () => {
+      const backend = backendRef.current;
+      if (!backend || cancelled) return;
+      const { players, queues, selectedId } = stateRef.current;
+      const player = leaderOf(players, selectedId);
+      if (!player) return;
+      const queue = queueFor(players, queues, selectedId);
+      const [freshPlayer, freshQueue] = await Promise.all([
+        backend.send<Player>("players/get", { player_id: player.player_id }).catch(() => null),
+        queue
+          ? backend
+              .send<PlayerQueue>("player_queues/get", { queue_id: queue.queue_id })
+              .catch(() => null)
+          : Promise.resolve(null),
+      ]);
+      if (cancelled || (!freshPlayer && !freshQueue)) return;
+      // If the server keeps returning the same position while playing, its clock is not moving
+      // (a stuck source or a player that never reports); keep time ourselves from the last
+      // change so the bar never freezes.
+      const now = Date.now() / 1000;
+      let elapsed = freshQueue?.elapsed_time ?? null;
+      let anchor = freshQueue?.elapsed_time_last_updated ?? null;
+      if (freshQueue?.queue_id) {
+        const base = freshQueue.elapsed_time ?? 0;
+        const sample = lastSample.current;
+        if (!sample || sample.queueId !== freshQueue.queue_id || Math.abs(base - sample.base) > 0.5) {
+          lastSample.current = { queueId: freshQueue.queue_id, base, changedAt: now };
+        } else if ((freshQueue.state ?? "") === "playing") {
+          // The reported position is the one we last saw change, so carry it forward from there.
+          // A server that keeps advancing resets this every poll, so nothing accumulates.
+          elapsed = Math.max(base, base + (now - sample.changedAt));
+          anchor = now;
+        }
+      }
+      setState((prev) => {
+        let next = prev;
+        if (freshPlayer?.player_id) {
+          next = {
+            ...next,
+            players: {
+              ...next.players,
+              [freshPlayer.player_id]: {
+                ...next.players[freshPlayer.player_id],
+                // Only the clock and the state: volumes and names stay from events and local edits.
+                elapsed_time: freshPlayer.elapsed_time,
+                elapsed_time_last_updated: freshPlayer.elapsed_time_last_updated,
+                playback_state: freshPlayer.playback_state,
+                state: freshPlayer.state,
+              },
+            },
+          };
+        }
+        if (freshQueue?.queue_id) {
+          const existing = next.queues[freshQueue.queue_id];
+          next = {
+            ...next,
+            queues: {
+              ...next.queues,
+              [freshQueue.queue_id]: {
+                ...existing,
+                elapsed_time: elapsed ?? freshQueue.elapsed_time,
+                elapsed_time_last_updated: anchor ?? freshQueue.elapsed_time_last_updated,
+                state: freshQueue.state,
+                // Picks up a track change even if that event was missed.
+                current_item: freshQueue.current_item ?? existing?.current_item ?? null,
+                next_item: freshQueue.next_item,
+              },
+            },
+          };
+        }
+        return next;
+      });
+    };
+
+    // Coming back to the app should not wait for the next tick: re-read the clock right away.
+    const onVisible = () => void refreshPosition();
+    document.addEventListener("visibilitychange", onVisible);
+    document.addEventListener("focus", onVisible);
+    void refreshPosition();
+    const timer = window.setInterval(() => void refreshPosition(), 2000);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
+      document.removeEventListener("focus", onVisible);
+      window.clearInterval(timer);
+    };
+  }, [anyPlaying, state.backendKind, state.phase]);
+
   const selectPlayer = useCallback((playerId: string) => {
     localStorage.setItem(STORAGE.selected, playerId);
     try {
-      const usage = JSON.parse(
-        localStorage.getItem(STORAGE.usage) ?? "{}",
-      ) as Record<string, number>;
+      const usage = readPrefJson<Record<string, number>>("usage", {}, STORAGE.usage);
       usage[playerId] = (usage[playerId] ?? 0) + 1;
-      localStorage.setItem(STORAGE.usage, JSON.stringify(usage));
+      writePrefJson("usage", usage);
       window.dispatchEvent(new Event("sonos4ma:usage"));
     } catch {
       /* usage counts are best-effort */

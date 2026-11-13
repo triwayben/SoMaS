@@ -4,23 +4,48 @@ import { Section } from "../components/Media";
 import { TopBar } from "../components/TopBar";
 import { useNav } from "../nav";
 import { useApp } from "../store";
-import { useTheme, type ThemeMode } from "../theme";
+import { copyText } from "../lib/clipboard";
+import { exportPrefs, importPrefs } from "../lib/prefs";
+import { saveVolumeStep, useVolumeStep } from "../lib/volumeStep";
+import { THEME_FAMILIES, themesIn } from "../lib/themes";
+import { useTheme } from "../theme";
 
-const THEMES: Array<{ value: ThemeMode; label: string }> = [
-  { value: "system", label: "System" },
-  { value: "light", label: "Light" },
-  { value: "dark", label: "Dark" },
-];
+
 
 export function SettingsScreen() {
   const app = useApp();
   const nav = useNav();
   const theme = useTheme();
+  const volumeStep = useVolumeStep();
   const [syncing, setSyncing] = useState(false);
 
   const musicProviders = app.providers.filter((provider) => provider.type === "music");
   const playerProviders = app.providers.filter((provider) => provider.type === "player");
   const roomCount = Object.keys(app.players).length;
+
+  const copyLayout = async () => {
+    const copied = await copyText(exportPrefs());
+    app.notify(copied ? "Layout copied" : "Could not copy the layout");
+  };
+
+  const restoreLayout = async () => {
+    let text = "";
+    try {
+      text = (await navigator.clipboard?.readText?.()) ?? "";
+    } catch {
+      // Reading the clipboard needs HTTPS; fall back to pasting it by hand.
+      text = "";
+    }
+    if (!text.trim()) text = window.prompt("Paste the copied layout") ?? "";
+    if (!text.trim()) return;
+    const restored = importPrefs(text);
+    if (!restored) {
+      app.notify("That does not look like a saved layout");
+      return;
+    }
+    app.notify(`Restored ${restored} settings`);
+    window.setTimeout(() => window.location.reload(), 700);
+  };
 
   const syncLibrary = async () => {
     setSyncing(true);
@@ -39,17 +64,88 @@ export function SettingsScreen() {
       <TopBar title="Settings" onBack={nav.back} />
 
       <Section title="Appearance">
-        <div className="segmented">
-          {THEMES.map((option) => (
-            <button
-              key={option.value}
-              className={`segmented__item ${theme.mode === option.value ? "is-active" : ""}`}
-              onClick={() => theme.setMode(option.value)}
-            >
-              {option.label}
-            </button>
-          ))}
+        <div className="theme-system">
+          <button
+            className={`theme-option ${theme.mode === "system" ? "is-active" : ""}`}
+            onClick={() => theme.setMode("system")}
+            aria-pressed={theme.mode === "system"}
+          >
+            <span className="theme-swatch theme-swatch--system" aria-hidden="true" />
+            Match the system
+          </button>
         </div>
+        {THEME_FAMILIES.map((family) => (
+          <div className="theme-group" key={family}>
+            <p className="theme-group__label">{family}</p>
+            <div className="theme-grid">
+              {themesIn(family).map((option) => {
+                const active = theme.mode === option.id;
+                return (
+                  <button
+                    key={option.id}
+                    className={`theme-option ${active ? "is-active" : ""}`}
+                    onClick={() => theme.setMode(option.id)}
+                    aria-pressed={active}
+                  >
+                    <span
+                      className="theme-swatch"
+                      style={{ background: option.background }}
+                      aria-hidden="true"
+                    >
+                      <i style={{ background: option.accent }} />
+                    </span>
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </Section>
+
+      <Section title="Layout">
+        <div className="panel">
+          <div className="panel__row">
+            <span className="panel__label panel__label--stack">
+              Pinned rooms, service order, sort and theme
+              <span className="panel__sublabel">
+                Saved on this device. Copy them before switching address, or to move them into the
+                installed app.
+              </span>
+            </span>
+          </div>
+        </div>
+        <div className="button-row">
+          <button className="btn btn--ghost" onClick={() => void copyLayout()}>
+            Copy layout
+          </button>
+          <button className="btn btn--ghost" onClick={() => void restoreLayout()}>
+            Restore layout
+          </button>
+        </div>
+      </Section>
+
+      <Section title="Volume">
+        <div className="panel">
+          <div className="panel__row panel__row--wrap">
+            <span className="panel__label">Tap step</span>
+            <div className="chips chips--wrap">
+              {Array.from({ length: 10 }, (_, index) => index + 1).map((step) => (
+                <button
+                  key={step}
+                  className={`chip ${volumeStep === step ? "is-active" : ""}`}
+                  onClick={() => saveVolumeStep(step)}
+                >
+                  {step}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <p className="panel__hint">
+          Tapping a volume bar moves it by {volumeStep} {volumeStep === 1 ? "step" : "steps"}. Dragging
+          still sets the level directly.
+        </p>
       </Section>
 
       <Section title="Connection">

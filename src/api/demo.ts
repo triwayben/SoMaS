@@ -662,7 +662,8 @@ export function createDemoBackend(): Backend {
         advance(queue.queue_id);
         continue;
       }
-      emitQueue(queue.queue_id);
+      // Mirror the server: elapsed-only updates carry just the seconds, not the queue.
+      emit({ event: "queue_time_updated", object_id: queue.queue_id, data: queue.elapsed_time });
     }
     for (const player of players.values()) {
       if (player.playback_state === "playing") {

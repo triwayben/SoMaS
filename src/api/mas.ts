@@ -31,6 +31,26 @@ export function normalizeBaseUrl(input: string): string {
   return url;
 }
 
+/**
+ * `crypto.randomUUID` only exists in secure contexts, and this app is commonly served over plain
+ * HTTP on a LAN, so fall back to `getRandomValues` (available everywhere) and finally Math.random.
+ */
+function newMessageId(): string {
+  const webCrypto = globalThis.crypto;
+  if (typeof webCrypto?.randomUUID === "function") {
+    return webCrypto.randomUUID().replace(/-/g, "");
+  }
+  const bytes = new Uint8Array(16);
+  if (typeof webCrypto?.getRandomValues === "function") {
+    webCrypto.getRandomValues(bytes);
+  } else {
+    for (let index = 0; index < bytes.length; index += 1) {
+      bytes[index] = Math.floor(Math.random() * 256);
+    }
+  }
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 export function websocketUrl(baseUrl: string): string {
   return `${baseUrl.replace(/^http/i, "ws")}/ws`;
 }
@@ -248,7 +268,7 @@ export class MasBackend implements Backend {
     if (!socket || socket.readyState !== WebSocket.OPEN) {
       return Promise.reject(new MasError("Not connected to Music Assistant"));
     }
-    const messageId = crypto.randomUUID().replace(/-/g, "");
+    const messageId = newMessageId();
     return new Promise<T>((resolve, reject) => {
       const timer = window.setTimeout(() => {
         this.pending.delete(messageId);

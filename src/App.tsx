@@ -16,6 +16,7 @@ import { SearchScreen } from "./screens/Search";
 import { SettingsScreen } from "./screens/Settings";
 import { SystemScreen } from "./screens/System";
 import { AppProvider, useApp } from "./store";
+import { useViewportHeight } from "./lib/viewportHeight";
 import { ThemeProvider } from "./theme";
 
 function Shell() {
@@ -25,6 +26,7 @@ function Shell() {
   const [overlay, setOverlay] = useState<"none" | "now" | "queue">("none");
   const [settingsFor, setSettingsFor] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  useViewportHeight();
 
   const route: Route = stack.length ? stack[stack.length - 1] : ({ name: tab } as Route);
   const isRoot = stack.length === 0;

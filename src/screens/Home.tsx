@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   ItemMapping,
   MediaItem,
@@ -10,7 +10,8 @@ import { EmptyState, MediaCard, MediaRow, Rail, Section, Spinner } from "../comp
 import { ServiceLogo } from "../components/ServiceLogo";
 import { Sheet } from "../components/Sheet";
 import { TopBar } from "../components/TopBar";
-import { topLevelRooms } from "../lib/players";
+import { itemImage, topLevelRooms } from "../lib/players";
+import { readPref, readPrefJson, writePref, writePrefJson } from "../lib/prefs";
 import { usePlayActions } from "../lib/usePlayActions";
 import { useNav } from "../nav";
 import { useApp } from "../store";
@@ -37,29 +38,90 @@ async function loadFavorites(send: SendFn): Promise<MediaItem[]> {
 
 type SendFn = <T = unknown>(command: string, args?: Record<string, unknown>) => Promise<T>;
 
+// Recently played rows are a summary type that often omits artwork, especially for artists.
+const artworkCache = new Map<string, NonNullable<ItemMapping["image"]>>();
+const MEDIA_PLURALS: Record<string, string> = {
+  album: "albums",
+  artist: "artists",
+  track: "tracks",
+  playlist: "playlists",
+  radio: "radios",
+  audiobook: "audiobooks",
+  podcast: "podcasts",
+  genre: "genres",
+};
+
+/** Ask the server for the full item behind a summary, since summaries often omit artwork. */
+async function resolveArtwork(item: ItemMapping, send: SendFn) {
+  if (item.uri) {
+    const full = await send<MediaItem>("music/item_by_uri", { uri: item.uri }).catch(() => null);
+    const image = itemImage(full);
+    if (image) return image;
+  }
+  // Library entries resolve best through their own media type endpoint.
+  const plural = MEDIA_PLURALS[item.media_type ?? ""];
+  if (plural && item.item_id) {
+    const full = await send<MediaItem>(`music/${plural}/get`, {
+      item_id: item.item_id,
+      provider_instance_id_or_domain: item.provider ?? undefined,
+    }).catch(() => null);
+    const image = itemImage(full);
+    if (image) return image;
+  }
+  return undefined;
+}
+
+/** Fill in missing covers by looking up the full item behind each summary. */
+async function fillArtwork(items: ItemMapping[], send: SendFn): Promise<ItemMapping[]> {
+  const missing = items.filter((item) => !itemImage(item)).slice(0, 12);
+  if (!missing.length) return items;
+  const found = new Map<ItemMapping, NonNullable<ItemMapping["image"]>>();
+  await Promise.all(
+    missing.map(async (item) => {
+      const key = item.uri ?? `${item.provider ?? ""}|${item.media_type ?? ""}|${item.item_id ?? ""}`;
+      const cached = artworkCache.get(key);
+      if (cached) {
+        found.set(item, cached);
+        return;
+      }
+      const image = await resolveArtwork(item, send);
+      if (image) {
+        artworkCache.set(key, image);
+        found.set(item, image);
+      }
+    }),
+  );
+  if (!found.size) return items;
+  return items.map((item) => (found.has(item) ? { ...item, image: found.get(item) ?? null } : item));
+}
+
 const SERVICE_ORDER_KEY = "sonos4ma.services";
+const SERVICE_ORDER_NAME = "serviceOrder";
+const ICON_ONLY_NAME = "serviceIconOnly";
 
 function readServiceOrder(): string[] {
-  try {
-    const raw = JSON.parse(localStorage.getItem(SERVICE_ORDER_KEY) ?? "[]");
-    return Array.isArray(raw) ? raw.filter((value): value is string => typeof value === "string") : [];
-  } catch {
-    return [];
-  }
+  const raw = readPrefJson<string[]>(SERVICE_ORDER_NAME, [], SERVICE_ORDER_KEY);
+  return Array.isArray(raw) ? raw.filter((value): value is string => typeof value === "string") : [];
 }
 
 function saveServiceOrder(ids: string[]) {
-  localStorage.setItem(SERVICE_ORDER_KEY, JSON.stringify(ids));
+  writePrefJson(SERVICE_ORDER_NAME, ids);
+}
+
+/** Only offline services are marked, so healthy ones stay uncluttered. */
+function ServiceDot({ available }: { available?: boolean }) {
+  if (available !== false) return null;
+  return <span className="service-dot is-off" role="img" aria-label="Unavailable" title="Unavailable" />;
 }
 
 const SERVICE_ICON_ONLY_KEY = "sonos4ma.services.iconOnly";
 
 function readIconOnly(): boolean {
-  return localStorage.getItem(SERVICE_ICON_ONLY_KEY) === "1";
+  return readPref(ICON_ONLY_NAME, SERVICE_ICON_ONLY_KEY) === "1";
 }
 
 function saveIconOnly(value: boolean) {
-  localStorage.setItem(SERVICE_ICON_ONLY_KEY, value ? "1" : "0");
+  writePref(ICON_ONLY_NAME, value ? "1" : "0");
 }
 
 const LIBRARY_LINKS: Array<{ mediaType: string; label: string; icon: IconName }> = [
@@ -84,7 +146,6 @@ export function HomeScreen() {
   }>({ recent: [], favorites: [], recommendations: [] });
   const [busy, setBusy] = useState(true);
   const [serviceOrder, setServiceOrder] = useState<string[]>(() => readServiceOrder());
-  const [serviceWidth, setServiceWidth] = useState<number | null>(null);
   const [arrangeOpen, setArrangeOpen] = useState(false);
   const [iconOnly, setIconOnly] = useState(() => readIconOnly());
   const [draggingService, setDraggingService] = useState<string | null>(null);
@@ -109,7 +170,7 @@ export function HomeScreen() {
       ]);
       if (cancelled) return;
       setData({
-        recent: recentItems ?? [],
+        recent: await fillArtwork(recentItems ?? [], send),
         favorites: favoriteItems,
         recommendations: (recommendationRows ?? []).filter((row) => (row.items?.length ?? 0) > 0),
       });
@@ -121,9 +182,7 @@ export function HomeScreen() {
     };
   }, [send, providers.length]);
 
-  const musicProviders: MusicProvider[] = providers.filter(
-    (provider) => provider.type === "music" && provider.available !== false,
-  );
+  const musicProviders: MusicProvider[] = providers.filter((provider) => provider.type === "music");
 
   // Saved order first, then any services the user has not arranged yet by name.
   const serviceRank = new Map(serviceOrder.map((id, index) => [id, index]));
@@ -132,24 +191,6 @@ export function HomeScreen() {
     const rankB = serviceRank.get(b.instance_id) ?? Number.MAX_SAFE_INTEGER;
     return rankA - rankB || a.name.localeCompare(b.name);
   });
-
-  // One width for every card: the widest service name plus the logo, chevron and padding.
-  const serviceNamesKey = orderedServices.map((provider) => provider.name).join("|");
-  useEffect(() => {
-    if (!orderedServices.length) return;
-    const context = document.createElement("canvas").getContext("2d");
-    if (!context) return;
-    const sample = document.querySelector<HTMLElement>(".service__name");
-    const style = sample ? getComputedStyle(sample) : null;
-    context.font = `${style?.fontWeight ?? "600"} ${style?.fontSize ?? "13px"} ${
-      style?.fontFamily ?? "-apple-system, BlinkMacSystemFont, Segoe UI, Inter, Roboto, Arial, sans-serif"
-    }`;
-    const widest = Math.max(
-      ...orderedServices.map((provider) => context.measureText(provider.name).width),
-    );
-    // Logo, both paddings and the gap between them; the chevron is gone.
-    setServiceWidth(Math.ceil(widest) + 68);
-  }, [serviceNamesKey]);
 
   const moveService = (id: string, overId: string) => {
     const current = orderedServices.map((provider) => provider.instance_id);
@@ -229,25 +270,18 @@ export function HomeScreen() {
           action={
             orderedServices.length > 1 ? (
               <button
-                className="section__action section__action--icon"
+                className="section__action section__action--arrange"
                 onClick={() => setArrangeOpen(true)}
                 aria-label="Arrange music services"
                 title="Arrange music services"
               >
-                <Icon name="drag" size={20} strokeWidth={2.2} />
+                <Icon name="arrange" size={20} strokeWidth={1.9} />
               </button>
             ) : undefined
           }
         >
           <div className={`service-rail ${iconOnly ? "service-rail--icons" : ""}`}>
-            <div
-              className="service-rail__track"
-              style={
-                serviceWidth
-                  ? ({ "--service-width": `${serviceWidth}px` } as CSSProperties)
-                  : undefined
-              }
-            >
+            <div className="service-rail__track">
               {orderedServices.map((provider) => (
                 <button
                   key={provider.instance_id}
@@ -258,16 +292,16 @@ export function HomeScreen() {
                     nav.push({
                       name: "browse",
                       title: provider.name,
-                      query: { kind: "path", path: provider.instance_id },
+                      // Music Assistant browses provider paths as `<instance_id>://<subpath>`;
+                      // a bare instance id fails to unpack inside the provider.
+                      query: { kind: "path", path: `${provider.instance_id}://` },
                     })
                   }
                 >
                   <ServiceLogo provider={provider} size={iconOnly ? 40 : 34} />
                   <span className="service__text">
                     <span className="service__name">{provider.name}</span>
-                    <span className="service__sub">
-                      {provider.available === false ? "Unavailable" : "Connected"}
-                    </span>
+                    <ServiceDot available={provider.available} />
                   </span>
                 </button>
               ))}
@@ -411,9 +445,9 @@ export function HomeScreen() {
                   <ServiceLogo provider={provider} size={52} />
                 </span>
                 <span className="row__body">
-                  <span className="row__title">{provider.name}</span>
-                  <span className="row__sub">
-                    {provider.available === false ? "Unavailable" : "Connected"}
+                  <span className="row__title-row">
+                    <span className="row__title">{provider.name}</span>
+                    <ServiceDot available={provider.available} />
                   </span>
                 </span>
               </div>

@@ -16,9 +16,11 @@ import {
   volumeLevelOf,
 } from "../lib/players";
 import { useApp } from "../store";
+import { useVolumeStep } from "../lib/volumeStep";
 
 export function GroupSheet({ playerId, onClose }: { playerId: string; onClose: () => void }) {
   const app = useApp();
+  const volumeStep = useVolumeStep();
   const target = app.players[playerId];
   const [selected, setSelected] = useState<string[]>(() =>
     target
@@ -212,6 +214,7 @@ export function GroupSheet({ playerId, onClose }: { playerId: string; onClose: (
                         <Slider
                           label={`${room.name} volume`}
                           value={level}
+                          tapStep={volumeStep}
                           onChange={(value) => void app.setVolume(room.player_id, value)}
                           formatValue={(value) => `${Math.round(value)}%`}
                         />
