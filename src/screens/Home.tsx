@@ -447,12 +447,14 @@ export function HomeScreen() {
               </button>
               <div className="row__main">
                 <span className="row__art">
-                  <ServiceLogo provider={provider} size={52} />
+                  <span className="service-mark">
+                    <ServiceLogo provider={provider} size={52} />
+                    <ServiceDot available={provider.available} />
+                  </span>
                 </span>
                 <span className="row__body">
                   <span className="row__title-row">
                     <span className="row__title">{provider.name}</span>
-                    <ServiceDot available={provider.available} />
                   </span>
                 </span>
               </div>

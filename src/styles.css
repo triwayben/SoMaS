@@ -829,6 +829,11 @@ img {
   background: var(--card);
 }
 
+/* A service logo carries its status badge on the corner, so let it sit outside the tile. */
+.row__art:has(> .service-mark) {
+  overflow: visible;
+}
+
 .device-art {
   display: grid;
   place-items: center;
@@ -2138,10 +2143,6 @@ img {
   max-width: 100%;
   padding: 3px 0 4px;
   scroll-snap-align: start;
-}
-
-.service-rail--icons .service-rail__track {
-  gap: 10px;
 }
 
 .service-rail--icons .service {
