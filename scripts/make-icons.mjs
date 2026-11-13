@@ -1,117 +1,194 @@
-// Generates the home-screen PNGs from the same shapes as public/icon.svg.
-import { deflateSync } from "node:zlib";
-import { writeFileSync, mkdirSync } from "node:fs";
+// Generates the app PNGs (and the favicon) from the master artwork in
+// assets/app-icon.png. The master is transparent, so everything is flattened
+// onto the dark tile colour the artwork was drawn against.
+import { readFileSync, writeFileSync } from "node:fs";
+import { inflateSync, deflateSync } from "node:zlib";
 
-const CRC_TABLE = (() => {
-  const table = new Int32Array(256);
-  for (let n = 0; n < 256; n += 1) {
-    let c = n;
-    for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-    table[n] = c;
-  }
-  return table;
-})();
+const SRC = "assets/app-icon.png";
+/** Tile colour behind the transparent master. */
+const TILE = [0x23, 0x23, 0x26];
 
-function crc32(buffer) {
-  let crc = -1;
-  for (const byte of buffer) crc = CRC_TABLE[(crc ^ byte) & 0xff] ^ (crc >>> 8);
-  return (crc ^ -1) >>> 0;
+// ---- decode ---------------------------------------------------------------
+const buf = readFileSync(SRC);
+let off = 8;
+let ihdr = null;
+const idat = [];
+while (off < buf.length) {
+  const len = buf.readUInt32BE(off);
+  const type = buf.toString("ascii", off + 4, off + 8);
+  const data = buf.subarray(off + 8, off + 8 + len);
+  if (type === "IHDR") {
+    ihdr = {
+      width: data.readUInt32BE(0),
+      height: data.readUInt32BE(4),
+      bitDepth: data[8],
+      colorType: data[9],
+      interlace: data[12],
+    };
+  } else if (type === "IDAT") {
+    idat.push(data);
+  } else if (type === "IEND") break;
+  off += 12 + len;
+}
+if (!ihdr || ihdr.bitDepth !== 8 || ihdr.colorType !== 6 || ihdr.interlace !== 0) {
+  throw new Error(`${SRC}: expected an 8-bit non-interlaced RGBA PNG, got ${JSON.stringify(ihdr)}`);
 }
 
+const { width: W, height: H } = ihdr;
+const raw = inflateSync(Buffer.concat(idat));
+const bpp = 4;
+const stride = W * bpp;
+const rgba = Buffer.alloc(stride * H);
+
+for (let y = 0; y < H; y++) {
+  const filter = raw[y * (stride + 1)];
+  const line = raw.subarray(y * (stride + 1) + 1, (y + 1) * (stride + 1));
+  const out = rgba.subarray(y * stride, (y + 1) * stride);
+  const prev = y > 0 ? rgba.subarray((y - 1) * stride, y * stride) : null;
+  for (let x = 0; x < stride; x++) {
+    const a = x >= bpp ? out[x - bpp] : 0;
+    const b = prev ? prev[x] : 0;
+    const c = prev && x >= bpp ? prev[x - bpp] : 0;
+    let v = line[x];
+    switch (filter) {
+      case 0:
+        break;
+      case 1:
+        v += a;
+        break;
+      case 2:
+        v += b;
+        break;
+      case 3:
+        v += (a + b) >> 1;
+        break;
+      case 4: {
+        const p = a + b - c;
+        const pa = Math.abs(p - a);
+        const pb = Math.abs(p - b);
+        const pc = Math.abs(p - c);
+        v += pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
+        break;
+      }
+      default:
+        throw new Error(`bad filter ${filter} at row ${y}`);
+    }
+    out[x] = v & 0xff;
+  }
+}
+
+// ---- resize: box filter, averaged in premultiplied alpha -------------------
+function sample(size) {
+  const out = Buffer.alloc(size * size * 4);
+  const scale = W / size;
+  for (let y = 0; y < size; y++) {
+    const y0 = Math.floor(y * scale);
+    const y1 = Math.max(y0 + 1, Math.min(H, Math.floor((y + 1) * scale)));
+    for (let x = 0; x < size; x++) {
+      const x0 = Math.floor(x * scale);
+      const x1 = Math.max(x0 + 1, Math.min(W, Math.floor((x + 1) * scale)));
+      let r = 0, g = 0, b = 0, a = 0, n = 0;
+      for (let sy = y0; sy < y1; sy++) {
+        let p = sy * stride + x0 * bpp;
+        for (let sx = x0; sx < x1; sx++, p += bpp) {
+          const al = rgba[p + 3] / 255;
+          r += rgba[p] * al;
+          g += rgba[p + 1] * al;
+          b += rgba[p + 2] * al;
+          a += al;
+          n++;
+        }
+      }
+      const o = (y * size + x) * 4;
+      const alpha = a / n;
+      out[o] = alpha > 0 ? Math.round(r / a) : 0;
+      out[o + 1] = alpha > 0 ? Math.round(g / a) : 0;
+      out[o + 2] = alpha > 0 ? Math.round(b / a) : 0;
+      out[o + 3] = Math.round(alpha * 255);
+    }
+  }
+  return out;
+}
+
+/** Flatten a square RGBA block onto the tile colour. */
+function flatten(size, pixels, inset = 0) {
+  const inner = Math.round(size * (1 - inset * 2));
+  const start = Math.round((size - inner) / 2);
+  const art = inset === 0 ? pixels : sample(inner);
+  const out = Buffer.alloc(size * size * 4);
+  for (let i = 0; i < size * size; i++) {
+    out[i * 4] = TILE[0];
+    out[i * 4 + 1] = TILE[1];
+    out[i * 4 + 2] = TILE[2];
+    out[i * 4 + 3] = 255;
+  }
+  const step = inset === 0 ? 1 : inner / size;
+  for (let y = 0; y < (inset === 0 ? size : inner); y++) {
+    for (let x = 0; x < (inset === 0 ? size : inner); x++) {
+      const s = (y * inner + x) * 4;
+      const d = ((y + start) * size + x + start) * 4;
+      const a = art[s + 3] / 255;
+      out[d] = Math.round(art[s] * a + TILE[0] * (1 - a));
+      out[d + 1] = Math.round(art[s + 1] * a + TILE[1] * (1 - a));
+      out[d + 2] = Math.round(art[s + 2] * a + TILE[2] * (1 - a));
+      out[d + 3] = 255;
+    }
+  }
+  void step;
+  return out;
+}
+
+// ---- encode ---------------------------------------------------------------
+const crcTable = (() => {
+  const t = new Int32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    t[n] = c;
+  }
+  return t;
+})();
+function crc32(bytes) {
+  let c = -1;
+  for (const byte of bytes) c = crcTable[(c ^ byte) & 0xff] ^ (c >>> 8);
+  return (c ^ -1) >>> 0;
+}
 function chunk(type, data) {
-  const length = Buffer.alloc(4);
-  length.writeUInt32BE(data.length);
+  const len = Buffer.alloc(4);
+  len.writeUInt32BE(data.length);
   const body = Buffer.concat([Buffer.from(type, "ascii"), data]);
   const crc = Buffer.alloc(4);
   crc.writeUInt32BE(crc32(body));
-  return Buffer.concat([length, body, crc]);
+  return Buffer.concat([len, body, crc]);
 }
-
-function encodePng(width, height, rgba) {
-  const stride = width * 4;
-  const raw = Buffer.alloc((stride + 1) * height);
-  for (let y = 0; y < height; y += 1) {
-    raw[y * (stride + 1)] = 0; // filter: none
-    rgba.copy(raw, y * (stride + 1) + 1, y * stride, (y + 1) * stride);
+function encode(size, pixels) {
+  const head = Buffer.alloc(13);
+  head.writeUInt32BE(size, 0);
+  head.writeUInt32BE(size, 4);
+  head[8] = 8;
+  head[9] = 6;
+  const rows = Buffer.alloc((size * 4 + 1) * size);
+  for (let y = 0; y < size; y++) {
+    rows[y * (size * 4 + 1)] = 0;
+    pixels.copy(rows, y * (size * 4 + 1) + 1, y * size * 4, (y + 1) * size * 4);
   }
-  const header = Buffer.alloc(13);
-  header.writeUInt32BE(width, 0);
-  header.writeUInt32BE(height, 4);
-  header[8] = 8; // bit depth
-  header[9] = 6; // RGBA
   return Buffer.concat([
-    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-    chunk("IHDR", header),
-    chunk("IDAT", deflateSync(raw, { level: 9 })),
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    chunk("IHDR", head),
+    chunk("IDAT", deflateSync(rows, { level: 9 })),
     chunk("IEND", Buffer.alloc(0)),
   ]);
 }
 
-function roundedRectDistance(px, py, cx, cy, halfW, halfH, radius) {
-  const dx = Math.abs(px - cx) - halfW + radius;
-  const dy = Math.abs(py - cy) - halfH + radius;
-  return Math.hypot(Math.max(dx, 0), Math.max(dy, 0)) + Math.min(Math.max(dx, dy), 0) - radius;
+function icon(size, inset = 0) {
+  return encode(size, flatten(size, sample(size), inset));
 }
 
-const STROKE = 0.7; // half of the 1.4 stroke in the 24-unit viewBox
+writeFileSync("public/icons/icon-180.png", icon(180));
+writeFileSync("public/icons/icon-192.png", icon(192));
+writeFileSync("public/icons/icon-512.png", icon(512));
+// maskable: keep the artwork inside the safe circle Android may crop to
+writeFileSync("public/icons/icon-maskable-512.png", icon(512, 0.1));
+writeFileSync("public/icons/favicon-64.png", icon(64));
 
-/** Is this viewBox point painted white? Mirrors the paths in public/icon.svg. */
-function isGlyph(x, y) {
-  const body = Math.abs(roundedRectDistance(x, y, 12, 12, 5.4, 8.4, 3.2)) <= STROKE;
-  const tweeter = Math.abs(Math.hypot(x - 12, y - 8.4) - 1.5) <= STROKE;
-  const woofer = Math.abs(Math.hypot(x - 12, y - 15.1) - 2.5) <= STROKE;
-  return body || tweeter || woofer;
-}
-
-/** Full-bleed square for maskable icons, rounded squircle otherwise. */
-function isBackground(x, y, maskable) {
-  if (maskable) return true;
-  return roundedRectDistance(x, y, 12, 12, 12, 12, 5.6) <= 0;
-}
-
-function render(size, { maskable = false, inset = 0 } = {}) {
-  const rgba = Buffer.alloc(size * size * 4);
-  const samples = 4;
-  const scale = (size * (1 - inset * 2)) / 24;
-  const offset = size * inset;
-
-  for (let py = 0; py < size; py += 1) {
-    for (let px = 0; px < size; px += 1) {
-      let glyphHits = 0;
-      let backgroundHits = 0;
-      for (let sy = 0; sy < samples; sy += 1) {
-        for (let sx = 0; sx < samples; sx += 1) {
-          const cx = px + (sx + 0.5) / samples;
-          const cy = py + (sy + 0.5) / samples;
-          const x = (cx - offset) / scale;
-          const y = (cy - offset) / scale;
-          if (maskable) {
-            if (roundedRectDistance(x, y, 12, 12, 12, 12, 6) > 0) backgroundHits += 1;
-            else backgroundHits += 1;
-          } else if (isBackground(x, y, false)) {
-            backgroundHits += 1;
-          }
-          if (isGlyph(x, y)) glyphHits += 1;
-        }
-      }
-      const total = samples * samples;
-      const glyph = glyphHits / total;
-      const background = maskable ? 1 : backgroundHits / total;
-      const alpha = Math.max(glyph, background);
-      const i = (py * size + px) * 4;
-      const white = glyph / Math.max(alpha, 1e-6);
-      rgba[i] = Math.round(255 * white);
-      rgba[i + 1] = Math.round(255 * white);
-      rgba[i + 2] = Math.round(255 * white);
-      rgba[i + 3] = Math.round(255 * alpha);
-    }
-  }
-  return encodePng(size, size, rgba);
-}
-
-mkdirSync("public/icons", { recursive: true });
-writeFileSync("public/icons/icon-192.png", render(192));
-writeFileSync("public/icons/icon-512.png", render(512));
-writeFileSync("public/icons/icon-maskable-512.png", render(512, { maskable: true, inset: 0.1 }));
-writeFileSync("public/icons/icon-180.png", render(180));
-console.log("icons written");
+console.log(`built icons from ${SRC} (${W}x${H})`);

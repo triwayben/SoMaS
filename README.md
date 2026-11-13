@@ -57,7 +57,14 @@ full-screen without browser chrome once added:
 - **Android:** Chrome menu → *Add to Home screen* (a full app install prompt needs HTTPS; over plain
   `http://` on the LAN Chrome installs it as a shortcut instead).
 
-The manifest icons are generated from `public/icon.svg` by `node scripts/make-icons.mjs`.
+The artwork lives in `assets/app-icon.png` (2048×2048, transparent) and every icon in
+`public/icons/` — 180/192/512, the maskable variant and the 64px favicon — is generated from it by
+`node scripts/make-icons.mjs`. The generated PNGs are committed, so a normal build does not need to
+run it; replace the master and rerun it to change the app's icon everywhere.
+
+**Unraid:** the container serves the icons itself, so point the template's Icon URL at
+`http://<your-nas>:8080/icons/icon-512.png` (or wherever you mapped port 80). No external hosting
+needed, and it works while the container is running.
 - The dev server is reachable by anyone on your network while it runs, so stop it when you are done.
 
 ## Connect
