@@ -6,6 +6,7 @@ import { ItemActionsSheet } from "../components/ItemActions";
 import { Chips, EmptyState, MediaRow, Section, Spinner } from "../components/Media";
 import { TopBar } from "../components/TopBar";
 import { itemImage, itemSeed, itemSubtitle } from "../lib/players";
+import { scopedKey } from "../lib/prefs";
 import { usePlayActions } from "../lib/usePlayActions";
 import { useNav } from "../nav";
 import { useApp } from "../store";
@@ -40,7 +41,7 @@ export function SearchScreen() {
   const [busy, setBusy] = useState(false);
   const [history, setHistory] = useState<string[]>(() => {
     try {
-      return JSON.parse(localStorage.getItem(HISTORY_KEY) ?? "[]") as string[];
+      return JSON.parse(localStorage.getItem(scopedKey(HISTORY_KEY)) ?? "[]") as string[];
     } catch {
       return [];
     }
@@ -76,7 +77,7 @@ export function SearchScreen() {
     if (!trimmed) return;
     const next = [trimmed, ...history.filter((entry) => entry !== trimmed)].slice(0, 6);
     setHistory(next);
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+    localStorage.setItem(scopedKey(HISTORY_KEY), JSON.stringify(next));
   };
 
   const openMedia = (item: MediaItem) => {
@@ -159,7 +160,7 @@ export function SearchScreen() {
                           event.stopPropagation();
                           const next = history.filter((item) => item !== entry);
                           setHistory(next);
-                          localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+                          localStorage.setItem(scopedKey(HISTORY_KEY), JSON.stringify(next));
                         }}
                       >
                         <Icon name="x" size={14} />

@@ -3,11 +3,12 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
-import { readPref, writePref } from "./lib/prefs";
+import { PREFS_EVENT, readPref, writePref } from "./lib/prefs";
 import { THEMES, themeById, type ThemeName } from "./lib/themes";
 
 /** What the user picked. "system" follows the OS. */
@@ -46,6 +47,18 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const listener = () => setSystem(media.matches ? "light" : "black");
     media.addEventListener("change", listener);
     return () => media.removeEventListener("change", listener);
+  }, []);
+
+  // Preferences belong to one Music Assistant server, so pick up the theme of whichever server
+  // the store just pointed at instead of keeping the previous one's colours. Subscribed in a
+  // layout effect so it is listening before the store's own connect effect changes the scope.
+  useLayoutEffect(() => {
+    const sync = () => {
+      const stored = readPref(THEME_PREF, THEME_KEY);
+      setModeState(isMode(stored) ? stored : "system");
+    };
+    window.addEventListener(PREFS_EVENT, sync);
+    return () => window.removeEventListener(PREFS_EVENT, sync);
   }, []);
 
   const resolved: ThemeName = mode === "system" ? system : mode;

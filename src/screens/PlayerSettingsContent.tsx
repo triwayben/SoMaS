@@ -14,6 +14,7 @@ import {
   volumeLevelOf,
 } from "../lib/players";
 import { useApp } from "../store";
+import { scopedKey } from "../lib/prefs";
 import { useVolumeStep } from "../lib/volumeStep";
 
 const SLEEP = [
@@ -50,7 +51,7 @@ function secondsUntilClock(value: string): number {
 const LAST_SLEEP_KEY = "somas.sleepCustom";
 
 function readLastSleepSeconds(): number | null {
-  const stored = Number(localStorage.getItem(LAST_SLEEP_KEY));
+  const stored = Number(localStorage.getItem(scopedKey(LAST_SLEEP_KEY)));
   return Number.isFinite(stored) && stored > 0 ? stored : null;
 }
 
@@ -117,7 +118,7 @@ export function PlayerSettingsContent({
   };
 
   const applyCustom = async (seconds: number) => {
-    localStorage.setItem(LAST_SLEEP_KEY, String(seconds));
+    localStorage.setItem(scopedKey(LAST_SLEEP_KEY), String(seconds));
     setLastCustom(seconds);
     await applyTimer(seconds);
   };

@@ -1,4 +1,5 @@
 import type { Player } from "../api/types";
+import { scopedKey } from "./prefs";
 
 export interface GroupPreset {
   id: string;
@@ -13,7 +14,7 @@ const MAX_PRESETS = 4;
 
 export function readGroupPresets(): GroupPreset[] {
   try {
-    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
+    const raw = JSON.parse(localStorage.getItem(scopedKey(STORAGE_KEY)) ?? "[]");
     if (!Array.isArray(raw)) return [];
     return raw.filter(
       (entry): entry is GroupPreset =>
@@ -64,7 +65,7 @@ export function rememberGrouping(
   };
   const next = [preset, ...current.filter((entry) => entry.id !== preset.id)].slice(0, MAX_PRESETS);
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    localStorage.setItem(scopedKey(STORAGE_KEY), JSON.stringify(next));
   } catch {
     /* presets are best effort */
   }

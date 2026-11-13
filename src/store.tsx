@@ -21,7 +21,7 @@ import type {
   ServerInfo,
 } from "./api/types";
 import { leaderOf, queueFor } from "./lib/players";
-import { readPrefJson, writePrefJson } from "./lib/prefs";
+import { readPrefJson, scopedKey, setPrefScope, writePrefJson } from "./lib/prefs";
 
 const STORAGE = {
   server: "somas.server",
@@ -279,7 +279,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const queueMap = Object.fromEntries((queues ?? []).map((queue) => [queue.queue_id, queue]));
 
     setState((prev) => {
-      const stored = localStorage.getItem(STORAGE.selected);
+      const stored = localStorage.getItem(scopedKey(STORAGE.selected));
       const selected = pickDefaultPlayer(players ?? [], prev.selectedId ?? stored);
       return {
         ...prev,
@@ -313,6 +313,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
           return;
         }
       }
+      // Layout, theme and pins belong to this server, so point the preference store at it before
+      // any screen reads them. The demo system keeps its own sandbox settings.
+      setPrefScope(demo ? "demo" : base);
+
       setState(() => ({
         ...initialState,
         phase: "connecting",
@@ -499,7 +503,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [anyPlaying, state.backendKind, state.phase]);
 
   const selectPlayer = useCallback((playerId: string) => {
-    localStorage.setItem(STORAGE.selected, playerId);
+    localStorage.setItem(scopedKey(STORAGE.selected), playerId);
     try {
       const usage = readPrefJson<Record<string, number>>("usage", {}, STORAGE.usage);
       usage[playerId] = (usage[playerId] ?? 0) + 1;
