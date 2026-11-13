@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Icon } from "../components/Icon";
 import { Section } from "../components/Media";
+import { Sheet } from "../components/Sheet";
 import { TopBar } from "../components/TopBar";
 import { useNav } from "../nav";
 import { useApp } from "../store";
@@ -18,33 +19,36 @@ export function SettingsScreen() {
   const theme = useTheme();
   const volumeStep = useVolumeStep();
   const [syncing, setSyncing] = useState(false);
+  // Copying settings to another address: one sheet holds the text either way, so restoring never
+  // depends on reading the clipboard, which a phone can block.
+  const [move, setMove] = useState<"copy" | "paste" | null>(null);
+  const [exported, setExported] = useState("");
+  const [draft, setDraft] = useState("");
 
   const musicProviders = app.providers.filter((provider) => provider.type === "music");
   const playerProviders = app.providers.filter((provider) => provider.type === "player");
   const roomCount = Object.keys(app.players).length;
 
-  const copyLayout = async () => {
-    const copied = await copyText(exportPrefs());
-    app.notify(copied ? "Layout copied" : "Could not copy the layout");
+  const openCopy = () => {
+    setExported(exportPrefs());
+    setMove("copy");
   };
 
-  const restoreLayout = async () => {
-    let text = "";
-    try {
-      text = (await navigator.clipboard?.readText?.()) ?? "";
-    } catch {
-      // Reading the clipboard needs HTTPS; fall back to pasting it by hand.
-      text = "";
-    }
-    if (!text.trim()) text = window.prompt("Paste the copied layout") ?? "";
-    if (!text.trim()) return;
-    const restored = importPrefs(text);
+  const copySettings = async () => {
+    const copied = await copyText(exported);
+    app.notify(copied ? "Settings copied" : "Select the text and copy it by hand");
+  };
+
+  const applySettings = () => {
+    const restored = importPrefs(draft);
     if (!restored) {
-      app.notify("That does not look like a saved layout");
+      app.notify("That does not look like copied settings");
       return;
     }
+    setMove(null);
     app.notify(`Restored ${restored} settings`);
-    window.setTimeout(() => window.location.reload(), 700);
+    // Theme, order and pins are read when the app renders, so reload to show them at once.
+    window.setTimeout(() => window.location.reload(), 800);
   };
 
   const syncLibrary = async () => {
@@ -107,20 +111,20 @@ export function SettingsScreen() {
         <div className="panel">
           <div className="panel__row">
             <span className="panel__label panel__label--stack">
-              Pinned rooms, service order, sort and theme
+              Order, theme, pins and history
               <span className="panel__sublabel">
-                Saved on this device. Copy them before switching address, or to move them into the
-                installed app.
+                Saved on this device for this server. Copy them here, then paste them at another
+                address or in the installed app to carry the layout across.
               </span>
             </span>
           </div>
         </div>
         <div className="button-row">
-          <button className="btn btn--ghost" onClick={() => void copyLayout()}>
-            Copy layout
+          <button className="btn btn--ghost" onClick={openCopy}>
+            Copy settings
           </button>
-          <button className="btn btn--ghost" onClick={() => void restoreLayout()}>
-            Restore layout
+          <button className="btn btn--ghost" onClick={() => { setDraft(""); setMove("paste"); }}>
+            Paste settings
           </button>
         </div>
       </Section>
@@ -254,6 +258,46 @@ export function SettingsScreen() {
         Playback, rooms, sources and library data all come live from Music Assistant over its
         websocket API.
       </p>
+
+      <Sheet
+        open={move !== null}
+        onClose={() => setMove(null)}
+        title={move === "copy" ? "Copy settings" : "Paste settings"}
+        subtitle={
+          move === "copy"
+            ? "For the server you are connected to"
+            : "From another address or the installed app"
+        }
+      >
+        <div className="settings-move">
+          <textarea
+            className="settings-move__text"
+            value={move === "copy" ? exported : draft}
+            readOnly={move === "copy"}
+            spellCheck={false}
+            placeholder={move === "paste" ? "Paste the settings you copied" : undefined}
+            onChange={(event) => {
+              if (move === "paste") setDraft(event.target.value);
+            }}
+          />
+          <p className="sheet__hint settings-move__hint">
+            {move === "copy"
+              ? "Copy this text, open SoMaS at the other address, then use Paste settings there."
+              : "These settings replace the ones saved for the server you are connected to."}
+          </p>
+          <div className="button-row">
+            {move === "copy" ? (
+              <button className="btn" onClick={() => void copySettings()}>
+                Copy to clipboard
+              </button>
+            ) : (
+              <button className="btn" onClick={applySettings} disabled={!draft.trim()}>
+                Apply
+              </button>
+            )}
+          </div>
+        </div>
+      </Sheet>
     </>
   );
 }
