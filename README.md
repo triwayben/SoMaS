@@ -36,6 +36,8 @@ that exact address to the home screen once. Then just run `npm run lan` whenever
 the port never changes, so the phone keeps its server address, login and settings, and an app that
 is already open reloads itself onto a new build the next time you bring it to the front.
 
+The dev server is reachable by anyone on your network while it runs, so stop it when you are done.
+
 Two things that look like "my changes aren't showing", and how to avoid them:
 
 - **Don't switch ports or addresses.** Login and settings live in browser storage per origin, so
@@ -65,22 +67,41 @@ run it; replace the master and rerun it to change the app's icon everywhere.
 
 ## Unraid
 
-The image carries `net.unraid.docker.icon` and `net.unraid.docker.webui` labels pointing at the icon
-and page the container itself serves (`/icons/icon-512.png`), so Unraid can show the mark without
-anywhere else to host it. Compose stacks pick the labels up when the container is recreated; if a
-tile still shows a question mark, put the same address into Unraid's own field:
+Unraid builds a container's Docker tile — the icon, and the **WebUI** button that opens the app —
+from template fields or from three `net.unraid.docker.*` labels. A container also has to be marked
+as *managed* before Unraid uses those labels, which is the piece that is easy to miss: without
+`net.unraid.docker.managed` the tile stays a question mark with no button, however the app itself
+runs.
 
-- **Docker Compose Manager:** Stack → Edit → the container's **Icon URL**:
-  `http://<your-nas-ip>:8080/icons/icon-512.png` (use whatever host port you mapped to 80).
+The image already carries the icon and webui labels, so a compose stack only needs the managed
+marker and the address spelled out — [IP]/[PORT:n] placeholders are a template feature, so write
+the real address in a compose label:
+
+```yaml
+labels:
+  net.unraid.docker.managed: composeman
+  net.unraid.docker.webui: "http://192.168.1.20:8080/"
+  net.unraid.docker.icon: "http://192.168.1.20:8080/icons/icon-512.png"
+```
+
+`deploy/unraid/docker-compose.yml` is a ready copy — replace the address with your server's and use
+whatever host port you mapped to container port 80. Both URLs must be reachable **from the Unraid
+server itself**, so give a LAN address rather than `localhost`, and keep the container running:
+the icon and page are served by SoMaS, not hosted elsewhere.
+
+Two ways to set it, depending on how the container was created:
+
+- **Docker Compose Manager:** Stack → Edit → the container's **Icon URL** and **WebUI URL** fields,
+  or add the labels above to the stack's YAML. Unraid fills these in when the container is
+  recreated, so a stack that already exists may need to be stopped and redeployed.
 - **Add Container template:** copy `deploy/unraid/SoMaS.xml` to
   `/boot/config/plugins/dockerMan/templates-user/` on the server, then add the container from that
-  template.
+  template — its `<Icon>` and `<WebUI>` give you the mark and the button with no labels involved.
 
 Unraid caches a container's icon after downloading it, so a changed icon needs the cached copies
-removed before the Docker tab will fetch it again:
+removed before the Docker tab fetches it again:
 `/var/lib/docker/unraid/images/<container>-icon.png` and
 `/var/local/emhttp/plugins/dynamix.docker.manager/images/<container>-icon.png`.
-- The dev server is reachable by anyone on your network while it runs, so stop it when you are done.
 
 ## Connect
 

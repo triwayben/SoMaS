@@ -1,0 +1,17 @@
+# Unraid Docker Compose Manager starting point for SoMaS.
+#
+# Copy this into a new stack in Unraid's Compose Manager, then replace <nas-ip> with the server's
+# address (e.g. 192.168.1.20). The three net.unraid.docker.* labels are what give the container its
+# icon and its clickable WebUI button on the Unraid Docker and Dashboard pages: without them the
+# tile is a question mark with no link, even though the app itself works.
+services:
+  somas:
+    image: ghcr.io/triwayben/somas:latest
+    container_name: somas
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    labels:
+      net.unraid.docker.managed: composeman
+      net.unraid.docker.webui: "http://<nas-ip>:8080/"
+      net.unraid.docker.icon: "http://<nas-ip>:8080/icons/icon-512.png"
