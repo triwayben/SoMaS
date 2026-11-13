@@ -1,6 +1,6 @@
 {
-  "name": "Sonos for Music Assistant",
-  "short_name": "Sonos MA",
+  "name": "SoMaS — Sonos-style controller for Music Assistant",
+  "short_name": "SoMaS",
   "description": "A Sonos-style web controller for Music Assistant",
   "start_url": "/",
   "scope": "/",

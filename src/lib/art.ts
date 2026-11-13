@@ -26,7 +26,7 @@ export interface Palette {
 }
 
 export function paletteFromSeed(seed: string): Palette {
-  const h = hueFromString(seed || "sonos");
+  const h = hueFromString(seed || "somas");
   return {
     base: hsl(h, 38, 12),
     from: hsl(h, 46, 34),

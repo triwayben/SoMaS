@@ -1,6 +1,7 @@
-# Sonos-style controller for Music Assistant
+# SoMaS — a Sonos-style controller for Music Assistant
 
-A web app that clones the Sonos controller experience — the current Sonos layout (floating glass
+**SoMaS** is a web app that clones the Sonos controller experience — the current Sonos layout
+(floating glass
 player bubble with artwork, queue and group volume above a Home / System dock and round Search
 button, full-screen Now Playing with artwork-tinted background) — on top of a **Music Assistant**
 server. Rooms, groups, sources, inputs, queues, favorites, search and

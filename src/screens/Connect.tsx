@@ -60,7 +60,7 @@ export function ConnectScreen() {
       <div className="connect__glow" aria-hidden="true" />
       <div className="connect__inner">
         <div className="connect__brand">
-          <span className="connect__logo">Sonos</span>
+          <span className="connect__logo">SoMaS</span>
           <span className="connect__badge">for Music Assistant</span>
         </div>
         <h1 className="connect__headline">Your whole home, one tap away.</h1>

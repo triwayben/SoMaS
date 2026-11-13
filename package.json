@@ -1,9 +1,9 @@
 {
-  "name": "sonos-web-for-music-assistant",
+  "name": "somas",
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "A Sonos-app style web controller for Music Assistant",
+  "description": "SoMaS — a Sonos-style web controller for Music Assistant",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5173 --strictPort",
     "dev:lan": "vite --host 0.0.0.0 --port 5173 --strictPort",

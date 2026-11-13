@@ -86,7 +86,7 @@ export function Artwork({
     }
   };
 
-  const palette = paletteFromSeed(seed || alt || "sonos");
+  const palette = paletteFromSeed(seed || alt || "somas");
 
   return (
     <div

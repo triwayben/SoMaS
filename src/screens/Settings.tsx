@@ -235,7 +235,7 @@ export function SettingsScreen() {
         <div className="panel">
           <div className="panel__row">
             <span className="panel__label">Interface</span>
-            <span className="panel__value panel__value--text">Sonos-style web controller</span>
+            <span className="panel__value panel__value--text">SoMaS — Sonos-style controller</span>
           </div>
           <div className="panel__row">
             <span className="panel__label">Music backend</span>

@@ -117,7 +117,7 @@ export function itemImage(item?: QueueItem | ItemMapping | MediaItem | null): Im
 }
 
 export function itemSeed(item?: ItemMapping | MediaItem | null): string {
-  if (!item) return "sonos";
+  if (!item) return "somas";
   const artist = item.artists?.[0]?.name ?? item.album?.name ?? "";
   return `${item.name ?? ""}${artist ? `-${artist}` : ""}`;
 }

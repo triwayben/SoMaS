@@ -60,7 +60,7 @@ export function NowPlaying({ onClose }: { onClose: () => void }) {
   const members = player ? groupMembers(player).filter((id) => app.players[id]) : [];
   const level = volumeLevelOf(player);
   const artUrl = imageUrl(itemImage(current), app.baseUrl, 1024);
-  const palette = paletteFromSeed(itemSeed(current?.media_item) || player?.name || "sonos");
+  const palette = paletteFromSeed(itemSeed(current?.media_item) || player?.name || "somas");
   const mediaUri = current?.media_item?.uri ?? "";
   const isFav = mediaUri ? favs[mediaUri] ?? Boolean(current?.media_item?.favorite) : false;
 
