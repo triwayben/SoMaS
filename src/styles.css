@@ -2239,19 +2239,26 @@ img {
   gap: 6px;
 }
 
+/* The unavailable badge sits on the logo's corner, so it never shifts a name. */
+.service-mark {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+
+.service-mark .service-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  /* Ring in the page colour, so the dot reads on any logo. */
+  box-shadow: 0 0 0 2px var(--bg);
+}
+
 .service-dot {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   flex: none;
   border-radius: 50%;
-  background: var(--ok);
-}
-
-.service-dot:not(.is-off) {
-  visibility: hidden;
-}
-
-.service-dot.is-off {
   background: var(--text-3);
 }
 

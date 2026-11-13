@@ -110,18 +110,8 @@ function saveServiceOrder(ids: string[]) {
 
 /** Only offline services are marked, so healthy ones stay uncluttered. */
 function ServiceDot({ available }: { available?: boolean }) {
-  // Always rendered so an offline service does not make its chip wider than its
-  // neighbours: the dot itself is hidden, but its space is kept.
-  const off = available === false;
-  return (
-    <span
-      className={`service-dot${off ? " is-off" : ""}`}
-      role={off ? "img" : undefined}
-      aria-label={off ? "Unavailable" : undefined}
-      aria-hidden={off ? undefined : "true"}
-      title={off ? "Unavailable" : undefined}
-    />
-  );
+  if (available !== false) return null;
+  return <span className="service-dot" role="img" aria-label="Unavailable" title="Unavailable" />;
 }
 
 const SERVICE_ICON_ONLY_KEY = "somas.services.iconOnly";
@@ -311,10 +301,12 @@ export function HomeScreen() {
                     })
                   }
                 >
-                  <ServiceLogo provider={provider} size={iconOnly ? 40 : 34} />
+                  <span className="service-mark">
+                    <ServiceLogo provider={provider} size={iconOnly ? 40 : 34} />
+                    <ServiceDot available={provider.available} />
+                  </span>
                   <span className="service__text">
                     <span className="service__name">{provider.name.trim()}</span>
-                    <ServiceDot available={provider.available} />
                   </span>
                 </button>
               ))}
