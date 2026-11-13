@@ -1360,6 +1360,9 @@ img {
 
 .bubble__signal {
   flex: none;
+  /* A block-level icon cannot ride the text baseline, so it stays put whatever the line box does. */
+  display: block;
+  align-self: center;
   opacity: 0.5;
 }
 

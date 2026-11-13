@@ -138,6 +138,17 @@ function pickDefaultPlayer(players: Player[], previous: string | null): string |
   return players[0]?.player_id ?? null;
 }
 
+/**
+ * Keeps the item object we already have when the server reports the same track again. Polling the
+ * position returns a fresh copy every couple of seconds, and handing that copy to the artwork and
+ * text rows makes them rebuild for no reason (artwork flashes, rows shift).
+ */
+function sameItem(previous?: QueueItem | null, next?: QueueItem | null) {
+  if (!previous) return next ?? null;
+  if (!next) return null;
+  return previous.queue_item_id === next.queue_item_id ? previous : next;
+}
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>(initialState);
   const [toast, setToast] = useState<string | undefined>();
@@ -461,9 +472,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 elapsed_time: elapsed ?? freshQueue.elapsed_time,
                 elapsed_time_last_updated: anchor ?? freshQueue.elapsed_time_last_updated,
                 state: freshQueue.state,
-                // Picks up a track change even if that event was missed.
-                current_item: freshQueue.current_item ?? existing?.current_item ?? null,
-                next_item: freshQueue.next_item,
+                // Picks up a track change even if that event was missed, without churning the
+                // object (and the artwork) when the track has not changed.
+                current_item: sameItem(existing?.current_item, freshQueue.current_item),
+                next_item: sameItem(existing?.next_item, freshQueue.next_item),
               },
             },
           };

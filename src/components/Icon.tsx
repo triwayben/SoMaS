@@ -157,12 +157,13 @@ const paths: Record<string, ReactNode> = {
       <path d="M6.2 6.2a8.2 8.2 0 0 0 0 11.6" />
     </>
   ),
+  // Level meter, centred on the glyph so it sits level with text instead of looking tilted.
   signal: (
     <>
-      <path d="M4.6 19.6v-3.2" />
-      <path d="M9.5 19.6v-6.4" />
-      <path d="M14.4 19.6v-9.6" />
-      <path d="M19.3 19.6V6.4" />
+      <path d="M4.6 9.6v4.8" />
+      <path d="M9.5 7.4v9.2" />
+      <path d="M14.4 5.4v13.2" />
+      <path d="M19.3 8.6v6.8" />
     </>
   ),
   menu: (
