@@ -4,6 +4,8 @@
  * saved server, token and every preference would be stranded under the old prefix and the
  * app would look signed out after the rename.
  */
+import { noteSettingsMigrated } from "./migrationNotice";
+
 const LEGACY_PREFIX = "sonos4ma.";
 const CURRENT_PREFIX = "somas.";
 
@@ -24,6 +26,7 @@ function migrateLegacyKeys() {
       }
       localStorage.removeItem(key);
     }
+    if (legacy.length) noteSettingsMigrated();
   } catch {
     // Storage blocked or full (private mode, cookies disabled): there is nothing to move.
   }

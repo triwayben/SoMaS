@@ -17,6 +17,7 @@ import { SearchScreen } from "./screens/Search";
 import { SettingsScreen } from "./screens/Settings";
 import { SystemScreen } from "./screens/System";
 import { AppProvider, useApp } from "./store";
+import { takeMigrationNotice } from "./lib/migrationNotice";
 import { useViewportHeight } from "./lib/viewportHeight";
 import { ThemeProvider } from "./theme";
 
@@ -65,6 +66,14 @@ function Shell() {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 });
   }, [routeKey]);
+
+  // Once an upgrade has moved saved settings, say so the first time the app is usable, so a kept
+  // login or a restored layout reads as intended rather than as something gone wrong.
+  useEffect(() => {
+    if (app.phase !== "ready") return;
+    const message = takeMigrationNotice();
+    if (message) app.notify(message);
+  }, [app.phase, app.notify]);
 
   if (app.phase !== "ready") {
     return <ConnectScreen />;

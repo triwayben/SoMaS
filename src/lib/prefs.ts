@@ -10,6 +10,8 @@
  * the demo system, never share a layout: pointing SoMaS at another server and back again brings
  * that server's own order, theme and pins with it.
  */
+import { noteSettingsMigrated } from "./migrationNotice";
+
 const KEY = "somas.prefs";
 const VERSION = 1;
 /** Records the instance whose settings are current, so the app opens with the right theme. */
@@ -70,13 +72,16 @@ export function setPrefScope(instance: string | null) {
   try {
     if (next) {
       localStorage.setItem(INSTANCE_KEY, next);
+      let carried = 0;
       for (const key of CARRIED_KEYS) {
         const value = localStorage.getItem(key);
         if (value === null) continue;
         const target = `${key}${SCOPE_MARK}${next}`;
         if (localStorage.getItem(target) === null) localStorage.setItem(target, value);
         localStorage.removeItem(key);
+        carried += 1;
       }
+      if (carried) noteSettingsMigrated();
     }
   } catch {
     // Storage disabled: the app still works, it just forgets on reload.
