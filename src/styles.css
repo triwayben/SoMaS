@@ -2294,7 +2294,7 @@ img {
 /* An unavailable service's logo fades back. It reads at a glance without adding a colour or moving
    anything, and it lifts the badge clear of artwork the dot would otherwise sit on top of. */
 .service-mark:has(.service-dot) .service-tile {
-  opacity: 0.55;
+  opacity: 0.4;
   filter: grayscale(1);
 }
 
