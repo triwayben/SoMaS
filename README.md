@@ -44,7 +44,7 @@ Two things that look like "my changes aren't showing", and how to avoid them:
   version after a rebuild, delete it and add it again from the address above.
 
 - On the phone, enter your **Music Assistant** address on the Connect screen using the server's LAN
-  name or IP (e.g. `homeassistant.local:8095`, `192.168.1.20:8095`) — `localhost` there would mean
+  name or IP (e.g. `music-assistant.local:8095`, `192.168.1.20:8095`) — `localhost` there would mean
   the phone itself.
 - Windows may ask to allow Node.js through the firewall the first time; allow it on private
   networks. If the phone cannot reach the page, that prompt was likely dismissed.
@@ -74,14 +74,15 @@ needed, and it works while the container is running.
 
 The Connect screen suggests a server so it does not have to be typed on every device:
 
-- `public/config.json` holds a starting address, shipped as `{ "server": "homeassistant.local:8095" }`.
+- `public/config.json` holds a starting address, shipped as
+  `{ "server": "music-assistant.local:8095" }`.
   Edit it at deploy time and every
   fresh visit to the app starts with that address filled in. It ships in `dist/` with the build.
 - `?server=host:port` on the URL overrides it, handy for testing or a second server.
 - A previously saved address always wins over both, so change it once in the field and the app
   remembers it on that device.
 
-1. Open the app. Enter your Music Assistant address, e.g. `homeassistant.local:8095` or
+1. Open the app. Enter your Music Assistant address, e.g. `music-assistant.local:8095` or
    `192.168.1.20:8095` (add `https://` if your webserver uses TLS).
 2. Paste a token: **Music Assistant → Settings → Profile → Long-lived access tokens → Create**.
    Alternatively switch to *username & password*, which uses `POST /auth/login`.

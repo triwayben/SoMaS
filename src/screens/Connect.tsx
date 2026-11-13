@@ -78,7 +78,7 @@ export function ConnectScreen() {
                 serverTouched.current = true;
                 setServer(event.target.value);
               }}
-              placeholder="homeassistant.local:8095"
+              placeholder="music-assistant.local:8095"
               autoCapitalize="none"
               autoCorrect="off"
               spellCheck={false}
