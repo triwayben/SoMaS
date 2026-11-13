@@ -19,15 +19,15 @@ import { useVolumeStep } from "../lib/volumeStep";
 
 interface PlayerBubbleProps {
   onOpen: () => void;
-  onQueue: () => void;
+  onGroup: () => void;
   onSettings: (playerId: string) => void;
 }
 
 /**
- * Floating "glass" player card: room + now playing, queue shortcut, big
+ * Floating "glass" player card: room + now playing, grouping shortcut, big
  * transport button and a group volume row.
  */
-export function PlayerBubble({ onOpen, onQueue, onSettings }: PlayerBubbleProps) {
+export function PlayerBubble({ onOpen, onGroup, onSettings }: PlayerBubbleProps) {
   const app = useApp();
   const volumeStep = useVolumeStep();
   const player = leaderOf(app.players, app.selectedId);
@@ -44,7 +44,8 @@ export function PlayerBubble({ onOpen, onQueue, onSettings }: PlayerBubbleProps)
   const members = player
     ? groupMembers(player).filter((id) => id !== player.player_id && app.players[id])
     : [];
-  const queueCount = queue?.items ?? 0;
+  // Everyone driven by this room's transport, counting the room itself.
+  const groupTotal = members.length + 1;
 
   if (!app.selectedId) return null;
 
@@ -101,15 +102,14 @@ export function PlayerBubble({ onOpen, onQueue, onSettings }: PlayerBubbleProps)
         </button>
 
         <button
-          className="bubble__queue"
-          onClick={onQueue}
-          aria-label={`Open queue, ${queueCount} items`}
+          className="bubble__group"
+          onClick={onGroup}
+          aria-label={`Group, ${groupTotal} ${groupTotal === 1 ? "speaker" : "speakers"}`}
+          title="Group speakers"
           type="button"
         >
-          <Icon name="queue" size={20} />
-          {queueCount > 0 ? (
-            <span className="bubble__count">{queueCount > 99 ? "99+" : queueCount}</span>
-          ) : null}
+          <Icon name="speaker" size={19} />
+          <span className="bubble__count">{groupTotal}</span>
         </button>
 
         <button

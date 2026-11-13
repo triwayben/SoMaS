@@ -1371,7 +1371,7 @@ img {
   text-overflow: ellipsis;
 }
 
-.bubble__queue {
+.bubble__group {
   position: relative;
   display: grid;
   place-items: center;
@@ -1385,7 +1385,7 @@ img {
   color: var(--text);
 }
 
-.bubble__queue:hover {
+.bubble__group:hover {
   background: rgba(255, 255, 255, 0.1);
 }
 

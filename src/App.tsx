@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BottomNav } from "./components/BottomNav";
+import { GroupSheet } from "./components/GroupSheet";
 import { PlayerBubble } from "./components/PlayerBubble";
 import { Sheet } from "./components/Sheet";
 import { NavContext, type NavValue, type Route, type TabName } from "./nav";
@@ -25,6 +26,7 @@ function Shell() {
   const [stack, setStack] = useState<Route[]>([]);
   const [overlay, setOverlay] = useState<"none" | "now" | "queue">("none");
   const [settingsFor, setSettingsFor] = useState<string | null>(null);
+  const [groupFor, setGroupFor] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   useViewportHeight();
 
@@ -114,7 +116,7 @@ function Shell() {
             {showBubble ? (
               <PlayerBubble
                 onOpen={() => setOverlay("now")}
-                onQueue={() => setOverlay("queue")}
+                onGroup={() => setGroupFor(app.selectedId)}
                 onSettings={(playerId) => setSettingsFor(playerId)}
               />
             ) : null}
@@ -147,6 +149,10 @@ function Shell() {
             <PlayerSettingsContent playerId={settingsFor} showHero={false} />
           ) : null}
         </Sheet>
+
+        {groupFor ? (
+          <GroupSheet playerId={groupFor} onClose={() => setGroupFor(null)} />
+        ) : null}
 
         {app.toast ? <div className="toast">{app.toast}</div> : null}
       </div>
