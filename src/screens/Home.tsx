@@ -110,8 +110,18 @@ function saveServiceOrder(ids: string[]) {
 
 /** Only offline services are marked, so healthy ones stay uncluttered. */
 function ServiceDot({ available }: { available?: boolean }) {
-  if (available !== false) return null;
-  return <span className="service-dot is-off" role="img" aria-label="Unavailable" title="Unavailable" />;
+  // Always rendered so an offline service does not make its chip wider than its
+  // neighbours: the dot itself is hidden, but its space is kept.
+  const off = available === false;
+  return (
+    <span
+      className={`service-dot${off ? " is-off" : ""}`}
+      role={off ? "img" : undefined}
+      aria-label={off ? "Unavailable" : undefined}
+      aria-hidden={off ? undefined : "true"}
+      title={off ? "Unavailable" : undefined}
+    />
+  );
 }
 
 const SERVICE_ICON_ONLY_KEY = "sonos4ma.services.iconOnly";
@@ -186,11 +196,14 @@ export function HomeScreen() {
 
   // Saved order first, then any services the user has not arranged yet by name.
   const serviceRank = new Map(serviceOrder.map((id, index) => [id, index]));
-  const orderedServices = [...musicProviders].sort((a, b) => {
-    const rankA = serviceRank.get(a.instance_id) ?? Number.MAX_SAFE_INTEGER;
-    const rankB = serviceRank.get(b.instance_id) ?? Number.MAX_SAFE_INTEGER;
-    return rankA - rankB || a.name.localeCompare(b.name);
-  });
+  const orderedServices = musicProviders
+    // A provider without a name would take up a slot in the row but show nothing.
+    .filter((provider) => provider.name?.trim())
+    .sort((a, b) => {
+      const rankA = serviceRank.get(a.instance_id) ?? Number.MAX_SAFE_INTEGER;
+      const rankB = serviceRank.get(b.instance_id) ?? Number.MAX_SAFE_INTEGER;
+      return rankA - rankB || a.name.localeCompare(b.name);
+    });
 
   const moveService = (id: string, overId: string) => {
     const current = orderedServices.map((provider) => provider.instance_id);
@@ -300,7 +313,7 @@ export function HomeScreen() {
                 >
                   <ServiceLogo provider={provider} size={iconOnly ? 40 : 34} />
                   <span className="service__text">
-                    <span className="service__name">{provider.name}</span>
+                    <span className="service__name">{provider.name.trim()}</span>
                     <ServiceDot available={provider.available} />
                   </span>
                 </button>

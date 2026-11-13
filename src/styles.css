@@ -2118,9 +2118,12 @@ img {
 
 .service-rail__track {
   display: flex;
-  gap: 6px;
+  /* One gap for the whole row: chips carry no side padding, so every logo sits the
+     same distance from the name before it whatever that name's length. */
+  gap: 22px;
   padding: 0 16px 4px;
   scroll-snap-type: x proximity;
+  scroll-padding-left: 16px;
 }
 
 /* The logo row sits closer to its heading and tighter than other sections do. */
@@ -2129,16 +2132,16 @@ img {
 }
 
 .service-rail .service {
-  padding-top: 3px;
-  padding-bottom: 4px;
-}
-
-.service-rail .service {
   /* Each card hugs its own name so the row reads as a set of buttons, not a grid. */
   flex: 0 0 auto;
   width: max-content;
   max-width: 100%;
+  padding: 3px 0 4px;
   scroll-snap-align: start;
+}
+
+.service-rail--icons .service-rail__track {
+  gap: 10px;
 }
 
 .service-rail--icons .service {
@@ -2242,6 +2245,10 @@ img {
   flex: none;
   border-radius: 50%;
   background: var(--ok);
+}
+
+.service-dot:not(.is-off) {
+  visibility: hidden;
 }
 
 .service-dot.is-off {
