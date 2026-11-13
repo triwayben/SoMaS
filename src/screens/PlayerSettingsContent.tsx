@@ -47,7 +47,7 @@ function secondsUntilClock(value: string): number {
   return Math.round((target.getTime() - Date.now()) / 1000);
 }
 
-const LAST_SLEEP_KEY = "sonos4ma.sleepCustom";
+const LAST_SLEEP_KEY = "somas.sleepCustom";
 
 function readLastSleepSeconds(): number | null {
   const stored = Number(localStorage.getItem(LAST_SLEEP_KEY));

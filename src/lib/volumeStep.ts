@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { readPref, writePref } from "./prefs";
 
-const KEY = "sonos4ma.volumeStep";
+const KEY = "somas.volumeStep";
 const NAME = "volumeStep";
-const EVENT = "sonos4ma:volume-step";
+const EVENT = "somas:volume-step";
 
 export const DEFAULT_VOLUME_STEP = 5;
 export const MIN_VOLUME_STEP = 1;

@@ -13,7 +13,7 @@ import { THEMES, themeById, type ThemeName } from "./lib/themes";
 /** What the user picked. "system" follows the OS. */
 export type ThemeMode = "system" | ThemeName;
 
-const THEME_KEY = "sonos4ma.theme";
+const THEME_KEY = "somas.theme";
 const THEME_PREF = "theme";
 
 interface ThemeValue {

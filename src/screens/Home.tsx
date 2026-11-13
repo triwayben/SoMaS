@@ -95,7 +95,7 @@ async function fillArtwork(items: ItemMapping[], send: SendFn): Promise<ItemMapp
   return items.map((item) => (found.has(item) ? { ...item, image: found.get(item) ?? null } : item));
 }
 
-const SERVICE_ORDER_KEY = "sonos4ma.services";
+const SERVICE_ORDER_KEY = "somas.services";
 const SERVICE_ORDER_NAME = "serviceOrder";
 const ICON_ONLY_NAME = "serviceIconOnly";
 
@@ -124,7 +124,7 @@ function ServiceDot({ available }: { available?: boolean }) {
   );
 }
 
-const SERVICE_ICON_ONLY_KEY = "sonos4ma.services.iconOnly";
+const SERVICE_ICON_ONLY_KEY = "somas.services.iconOnly";
 
 function readIconOnly(): boolean {
   return readPref(ICON_ONLY_NAME, SERVICE_ICON_ONLY_KEY) === "1";

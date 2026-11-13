@@ -29,8 +29,8 @@ export function ProfileScreen() {
 
   useEffect(() => {
     const sync = () => setUsage(readUsage());
-    window.addEventListener("sonos4ma:usage", sync);
-    return () => window.removeEventListener("sonos4ma:usage", sync);
+    window.addEventListener("somas:usage", sync);
+    return () => window.removeEventListener("somas:usage", sync);
   }, []);
 
   // Music Assistant keeps a per-user history of played items; ask it for tracks and

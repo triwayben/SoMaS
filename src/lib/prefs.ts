@@ -6,10 +6,10 @@
  * Keeping them in one versioned bundle means the shape can be migrated instead of dropped, and
  * it can be copied out and back in when the app moves to a new address.
  */
-const KEY = "sonos4ma.prefs";
+const KEY = "somas.prefs";
 const VERSION = 1;
 
-export const PREFS_EVENT = "sonos4ma:prefs";
+export const PREFS_EVENT = "somas:prefs";
 
 type Values = Record<string, string>;
 

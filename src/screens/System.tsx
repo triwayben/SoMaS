@@ -33,9 +33,9 @@ const SORT_OPTIONS: Array<{ id: SortMode; label: string }> = [
   { id: "alpha", label: "Alphabetical" },
 ];
 
-const SORT_KEY = "sonos4ma.sort";
-const PIN_KEY = "sonos4ma.pinned";
-const USAGE_KEY = "sonos4ma.usage";
+const SORT_KEY = "somas.sort";
+const PIN_KEY = "somas.pinned";
+const USAGE_KEY = "somas.usage";
 const SORT_NAME = "sort";
 const PIN_NAME = "pinned";
 const USAGE_NAME = "usage";
@@ -84,8 +84,8 @@ export function SystemScreen() {
 
   useEffect(() => {
     const sync = () => setUsage(readUsage());
-    window.addEventListener("sonos4ma:usage", sync);
-    return () => window.removeEventListener("sonos4ma:usage", sync);
+    window.addEventListener("somas:usage", sync);
+    return () => window.removeEventListener("somas:usage", sync);
   }, []);
 
   useEffect(() => {

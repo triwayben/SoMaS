@@ -8,7 +8,7 @@ export interface GroupPreset {
   usedAt: number;
 }
 
-const STORAGE_KEY = "sonos4ma.groupPresets";
+const STORAGE_KEY = "somas.groupPresets";
 const MAX_PRESETS = 4;
 
 export function readGroupPresets(): GroupPreset[] {

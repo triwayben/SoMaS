@@ -1,3 +1,5 @@
+// First, so every key is under its SoMaS name before any screen reads it.
+import "./lib/legacyStorage";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import { watchForUpdates } from "./lib/updates";

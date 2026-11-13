@@ -24,12 +24,12 @@ import { leaderOf, queueFor } from "./lib/players";
 import { readPrefJson, writePrefJson } from "./lib/prefs";
 
 const STORAGE = {
-  server: "sonos4ma.server",
-  token: "sonos4ma.token",
-  selected: "sonos4ma.player",
-  theme: "sonos4ma.theme",
-  demo: "sonos4ma.demo",
-  usage: "sonos4ma.usage",
+  server: "somas.server",
+  token: "somas.token",
+  selected: "somas.player",
+  theme: "somas.theme",
+  demo: "somas.demo",
+  usage: "somas.usage",
 };
 
 export type Phase = "welcome" | "connecting" | "ready" | "error";
@@ -504,7 +504,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const usage = readPrefJson<Record<string, number>>("usage", {}, STORAGE.usage);
       usage[playerId] = (usage[playerId] ?? 0) + 1;
       writePrefJson("usage", usage);
-      window.dispatchEvent(new Event("sonos4ma:usage"));
+      window.dispatchEvent(new Event("somas:usage"));
     } catch {
       /* usage counts are best-effort */
     }

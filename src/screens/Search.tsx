@@ -10,7 +10,7 @@ import { usePlayActions } from "../lib/usePlayActions";
 import { useNav } from "../nav";
 import { useApp } from "../store";
 
-const HISTORY_KEY = "sonos4ma.searches";
+const HISTORY_KEY = "somas.searches";
 
 type Filter = "all" | "track" | "album" | "artist" | "playlist" | "radio" | "podcast";
 
