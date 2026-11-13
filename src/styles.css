@@ -2181,6 +2181,14 @@ img {
   scroll-snap-align: start;
 }
 
+/* An icon chip is a 56px tap target around a 40px logo, so 8px of its box sits either side of the
+   artwork. Both the gap and the row's inset give those 8px back, which leaves neighbouring logos
+   22px apart and the first logo on the same left edge as the named row. */
+.service-rail--icons .service-rail__track {
+  gap: 6px;
+  padding-inline: 8px;
+}
+
 .service-rail--icons .service {
   flex: 0 0 56px;
   height: 56px;
