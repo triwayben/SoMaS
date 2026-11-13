@@ -14,6 +14,7 @@ import {
   volumeLevelOf,
 } from "../lib/players";
 import { useApp } from "../store";
+import { useProgressFill } from "../lib/useProgressFill";
 import { useTicker } from "../lib/useTicker";
 import { useVolumeStep } from "../lib/volumeStep";
 
@@ -39,6 +40,12 @@ export function PlayerBubble({ onOpen, onGroup, onSettings }: PlayerBubbleProps)
   useTicker(playing);
   const elapsed = positionFor(player, queue, duration);
   const progress = duration > 0 ? Math.min(100, (elapsed / duration) * 100) : 0;
+  const hasProgress = Boolean(current) && duration > 0;
+  // While playing, the line is painted per frame so it glides rather than stepping once a second.
+  const fillRef = useProgressFill(
+    hasProgress && playing,
+    () => (duration > 0 ? (positionFor(player, queue, duration) / duration) * 100 : 0),
+  );
   const level = volumeLevelOf(player);
   const muted = Boolean(player?.volume_muted);
   const members = player
@@ -65,9 +72,11 @@ export function PlayerBubble({ onOpen, onGroup, onSettings }: PlayerBubbleProps)
   return (
     <section className="bubble" aria-label="Now playing">
       <CoverGlow queue={queue} baseUrl={app.baseUrl} />
-      {current && duration > 0 ? (
+      {hasProgress ? (
         <div className="bubble__progress" aria-hidden="true">
-          <span style={{ width: `${progress}%` }} />
+          {/* The width from state is correct at render time; the frame loop above keeps
+              advancing it in between. */}
+          <span ref={fillRef} style={{ width: `${progress}%` }} />
         </div>
       ) : null}
 

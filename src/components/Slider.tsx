@@ -14,6 +14,12 @@ interface SliderProps {
   formatValue?: (value: number) => string;
   /** When set, a tap nudges the value by this much instead of jumping to the tapped spot. */
   tapStep?: number;
+  /**
+   * Per-frame reader (0–100) for a value that advances with time, such as playback position.
+   * The fill and thumb are painted from it directly, so they glide instead of stepping once a
+   * second when the value behind them only refreshes that often.
+   */
+  livePercent?: () => number;
 }
 
 export function Slider({
@@ -29,6 +35,7 @@ export function Slider({
   className = "",
   formatValue,
   tapStep,
+  livePercent,
 }: SliderProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
@@ -44,6 +51,29 @@ export function Slider({
 
   const shown = local ?? value;
   const percent = max === min ? 0 : ((shown - min) / (max - min)) * 100;
+  const fillRef = useRef<HTMLDivElement>(null);
+  const thumbRef = useRef<HTMLDivElement>(null);
+  const liveRef = useRef(livePercent);
+  liveRef.current = livePercent;
+  const percentRef = useRef(percent);
+  percentRef.current = percent;
+  // Hand the fill over to the frame loop only when nothing local is in control of the value.
+  const live = Boolean(livePercent) && !dragging && local == null && !disabled;
+
+  useEffect(() => {
+    if (!live) return;
+    let frame = 0;
+    const paint = () => {
+      const read = liveRef.current;
+      const raw = read ? read() : percentRef.current;
+      const clamped = raw < 0 ? 0 : raw > 100 ? 100 : raw;
+      if (fillRef.current) fillRef.current.style.width = `${clamped}%`;
+      if (thumbRef.current) thumbRef.current.style.left = `${clamped}%`;
+      frame = window.requestAnimationFrame(paint);
+    };
+    frame = window.requestAnimationFrame(paint);
+    return () => window.cancelAnimationFrame(frame);
+  }, [live]);
 
   const valueFromEvent = useCallback(
     (clientX: number) => {
@@ -192,9 +222,16 @@ export function Slider({
         </span>
       ) : null}
       <div className="slider__track" ref={trackRef}>
-        <div className="slider__fill" style={{ width: `${Math.max(0, Math.min(100, percent))}%` }} />
+        {/* The rendered value is right for this instant; the frame loop keeps it moving between
+            renders. Keeping both means the slider still looks correct if frames are paused. */}
+        <div
+          className="slider__fill"
+          ref={fillRef}
+          style={{ width: `${Math.max(0, Math.min(100, percent))}%` }}
+        />
         <div
           className="slider__thumb"
+          ref={thumbRef}
           style={{ left: `${Math.max(0, Math.min(100, percent))}%` }}
         />
       </div>

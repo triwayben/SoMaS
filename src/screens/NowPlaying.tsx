@@ -185,6 +185,12 @@ export function NowPlaying({ onClose }: { onClose: () => void }) {
               max={duration || 1}
               step={1}
               disabled={!duration || !queue}
+              // Follow the clock per frame so the bar glides between the once-a-second updates.
+              livePercent={() => {
+                if (!duration) return 0;
+                const position = seekPreview ?? positionFor(player, queue, duration);
+                return (Math.min(position, duration) / duration) * 100;
+              }}
               onChange={(value) => setSeekPreview(value)}
               onCommit={(value) => {
                 if (queue) void app.seek(queue.queue_id, value);

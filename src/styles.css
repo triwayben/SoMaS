@@ -1285,7 +1285,9 @@ img {
   height: 100%;
   border-radius: inherit;
   background: rgba(255, 255, 255, 0.85);
-  transition: width 0.7s linear;
+  /* No transition: the width is painted every frame while playing, and a transition on top of
+     that would smear each write into a slow ease. */
+  will-change: width;
 }
 
 .bubble__row {

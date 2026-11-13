@@ -66,7 +66,8 @@ The manifest icons are generated from `public/icon.svg` by `node scripts/make-ic
 
 The Connect screen suggests a server so it does not have to be typed on every device:
 
-- `public/config.json` holds `{ "server": "homeassistant.local:8095" }`. Edit it at deploy time and every
+- `public/config.json` holds a starting address, shipped as `{ "server": "homeassistant.local:8095" }`.
+  Edit it at deploy time and every
   fresh visit to the app starts with that address filled in. It ships in `dist/` with the build.
 - `?server=host:port` on the URL overrides it, handy for testing or a second server.
 - A previously saved address always wins over both, so change it once in the field and the app
