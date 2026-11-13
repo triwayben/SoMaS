@@ -2283,6 +2283,13 @@ img {
   flex: none;
 }
 
+/* An unavailable service's logo fades back. It reads at a glance without adding a colour or moving
+   anything, and it lifts the badge clear of artwork the dot would otherwise sit on top of. */
+.service-mark:has(.service-dot) .service-tile {
+  opacity: 0.55;
+  filter: grayscale(1);
+}
+
 .service-mark .service-dot {
   position: absolute;
   top: -2px;
@@ -2292,11 +2299,11 @@ img {
 }
 
 .service-dot {
-  width: 8px;
-  height: 8px;
+  width: 9px;
+  height: 9px;
   flex: none;
   border-radius: 50%;
-  background: var(--text-3);
+  background: var(--text-2);
 }
 
 .row__title-row {
