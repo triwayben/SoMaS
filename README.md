@@ -63,9 +63,23 @@ The artwork lives in `assets/app-icon.png` (2048×2048, transparent) and every i
 `node scripts/make-icons.mjs`. The generated PNGs are committed, so a normal build does not need to
 run it; replace the master and rerun it to change the app's icon everywhere.
 
-**Unraid:** the container serves the icons itself, so point the template's Icon URL at
-`http://<your-nas>:8080/icons/icon-512.png` (or wherever you mapped port 80). No external hosting
-needed, and it works while the container is running.
+## Unraid
+
+The image carries `net.unraid.docker.icon` and `net.unraid.docker.webui` labels pointing at the icon
+and page the container itself serves (`/icons/icon-512.png`), so Unraid can show the mark without
+anywhere else to host it. Compose stacks pick the labels up when the container is recreated; if a
+tile still shows a question mark, put the same address into Unraid's own field:
+
+- **Docker Compose Manager:** Stack → Edit → the container's **Icon URL**:
+  `http://<your-nas-ip>:8080/icons/icon-512.png` (use whatever host port you mapped to 80).
+- **Add Container template:** copy `deploy/unraid/SoMaS.xml` to
+  `/boot/config/plugins/dockerMan/templates-user/` on the server, then add the container from that
+  template.
+
+Unraid caches a container's icon after downloading it, so a changed icon needs the cached copies
+removed before the Docker tab will fetch it again:
+`/var/lib/docker/unraid/images/<container>-icon.png` and
+`/var/local/emhttp/plugins/dynamix.docker.manager/images/<container>-icon.png`.
 - The dev server is reachable by anyone on your network while it runs, so stop it when you are done.
 
 ## Connect

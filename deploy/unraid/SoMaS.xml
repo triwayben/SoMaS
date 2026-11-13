@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<!--
+  Unraid template for SoMaS.
+
+  Copy this file to /boot/config/plugins/dockerMan/templates-user/ on the server, then use
+  Docker -> Add Container and pick "SoMaS" from the template list. The icon is the image's own
+  mark, served by the container itself, so no external hosting is involved.
+-->
+<Container version="2">
+  <Name>SoMaS</Name>
+  <Repository>ghcr.io/triwayben/somas:latest</Repository>
+  <Registry>https://github.com/triwayben/SoMaS/pkgs/container/somas</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/triwayben/SoMaS/issues</Support>
+  <Project>https://github.com/triwayben/SoMaS</Project>
+  <Overview>A Sonos-style web controller for Music Assistant. Rooms, groups, queues, favourites and search come live from your Music Assistant server, and the browser talks straight to it — nothing is proxied.</Overview>
+  <Category>MediaApp:Music MediaServer:Music</Category>
+  <WebUI>http://[IP]:[PORT:80]/</WebUI>
+  <TemplateURL/>
+  <Icon>http://[IP]:[PORT:80]/icons/icon-512.png</Icon>
+  <ExtraParams>--restart unless-stopped</ExtraParams>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled/>
+  <DonateText/>
+  <DonateLink/>
+  <Config Name="Web UI" Target="80" Default="8080" Mode="tcp" Description="Port the app is served on. Open http://&lt;server-ip&gt;:&lt;port&gt;/ on your phone and add it to the home screen." Type="Port" Display="always" Required="true" Mask="false">8080</Config>
+</Container>
