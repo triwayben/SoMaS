@@ -681,6 +681,29 @@ export function SettingsScreen() {
               Anyone who scans this can control your rooms until you change GUEST_KEY and restart
               the proxy. It is a share, not a secret.
             </p>
+            {/* Shown here as well as in the section above, so what the code hands over is visible
+                at the moment it is handed over. These are the same switches, not a copy. */}
+            <p className="theme-group__label">What this code allows</p>
+            <div className="panel">
+              {GUEST_OPTIONAL.map((feature) => {
+                const on = isAllowed(limits, feature.id);
+                return (
+                  <div className="panel__row" key={feature.id}>
+                    <span className="panel__label">{feature.label}</span>
+                    <button
+                      className={`switch ${on ? "is-on" : ""}`}
+                      role="switch"
+                      aria-checked={on}
+                      aria-label={`Allow guests to ${feature.label.toLowerCase()}`}
+                      disabled={changingLimit === feature.id}
+                      onClick={() => void toggleLimit(feature)}
+                    >
+                      <span className="switch__knob" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
             <div className="button-row">
               <button className="btn" onClick={() => void copyGuestLink()}>
                 Copy link
