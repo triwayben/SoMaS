@@ -8,7 +8,7 @@ import { useNav } from "../nav";
 import { useApp } from "../store";
 import { copyText } from "../lib/clipboard";
 import { settingsWereMigrated } from "../lib/migrationNotice";
-import { exportPrefs, importPrefs } from "../lib/prefs";
+import { exportAllPrefs, importPrefs } from "../lib/prefs";
 import { saveVolumeStep, useVolumeStep } from "../lib/volumeStep";
 import { THEME_FAMILIES, themesIn } from "../lib/themes";
 import { useTheme } from "../theme";
@@ -34,7 +34,7 @@ export function SettingsScreen() {
   const roomCount = Object.keys(app.players).length;
 
   const openCopy = () => {
-    setExported(exportPrefs());
+    setExported(exportAllPrefs());
     setMove("copy");
   };
 
@@ -117,8 +117,8 @@ export function SettingsScreen() {
             <span className="panel__label panel__label--stack">
               Order, theme, pins and history
               <span className="panel__sublabel">
-                Saved on this device for this server. Copy them here, then paste them at another
-                address or in the installed app to carry the layout across.
+                Saved on this device per server and per account. Copy them here to take every
+                server's layout to another address or the installed app in one go.
               </span>
             </span>
           </div>
@@ -318,7 +318,7 @@ export function SettingsScreen() {
         title={move === "copy" ? "Copy settings" : "Paste settings"}
         subtitle={
           move === "copy"
-            ? "For the server you are connected to"
+            ? "Every server saved on this device"
             : "From another address or the installed app"
         }
       >
@@ -335,8 +335,8 @@ export function SettingsScreen() {
           />
           <p className="sheet__hint settings-move__hint">
             {move === "copy"
-              ? "Copy this text, open SoMaS at the other address, then use Paste settings there."
-              : "These settings replace the ones saved for the server you are connected to."}
+              ? "Each server keeps its own entry, so paste this anywhere and every one lands back on its own settings."
+              : "Settings for every server in this text replace the ones saved here; a plain single-server copy replaces only the server you are connected to."}
           </p>
           {move === "copy" && exported ? (
             <QrCode

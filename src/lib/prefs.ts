@@ -117,11 +117,10 @@ export function setPrefScope(instance: string | null) {
   window.dispatchEvent(new Event(PREFS_EVENT));
 }
 
-function load(): Values {
+/** Reads one stored bundle, keeping only the string values this file can use. */
+function parseBundle(raw: string | null): Values {
   try {
-    const parsed = JSON.parse(localStorage.getItem(scopedKey(KEY)) ?? "null") as
-      | { version?: number; values?: unknown }
-      | null;
+    const parsed = JSON.parse(raw ?? "null") as { version?: number; values?: unknown } | null;
     if (parsed && parsed.version === VERSION && parsed.values && typeof parsed.values === "object") {
       const values: Values = {};
       for (const [name, value] of Object.entries(parsed.values as Record<string, unknown>)) {
@@ -133,6 +132,10 @@ function load(): Values {
     // Unreadable bundle: fall back to the legacy keys below rather than losing everything.
   }
   return {};
+}
+
+function load(): Values {
+  return parseBundle(localStorage.getItem(scopedKey(KEY)));
 }
 
 function save(values: Values) {
@@ -178,9 +181,30 @@ export function writePrefJson(name: string, value: unknown) {
   writePref(name, JSON.stringify(value));
 }
 
-/** A portable copy of every preference, for moving the layout to another app instance. */
+/** A portable copy of the layout for the server in use, for moving it to another app instance. */
 export function exportPrefs(): string {
   return JSON.stringify({ version: VERSION, values: load() }, null, 2);
+}
+
+/**
+ * Every server's layout at once. Each server keeps its own entry, so a paste puts each one back
+ * where it belongs instead of piling them all onto whatever is connected at the time.
+ */
+export function exportAllPrefs(): string {
+  const servers: Record<string, Values> = {};
+  try {
+    const prefix = `${KEY}${SCOPE_MARK}`;
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (!key?.startsWith(prefix)) continue;
+      const instance = key.slice(prefix.length);
+      const values = parseBundle(localStorage.getItem(key));
+      if (Object.keys(values).length) servers[instance] = values;
+    }
+  } catch {
+    // Storage disabled: there is nothing to copy.
+  }
+  return JSON.stringify({ version: VERSION, servers }, null, 2);
 }
 
 /** Merges a copied bundle back in; returns how many preferences were applied. */
@@ -191,6 +215,29 @@ export function importPrefs(text: string): number {
   } catch {
     return 0;
   }
+  // A copy of every server: each entry goes back to the server it came from.
+  const servers = (parsed as { servers?: unknown } | null)?.servers;
+  if (servers && typeof servers === "object") {
+    let restored = 0;
+    for (const [instance, entry] of Object.entries(servers as Record<string, unknown>)) {
+      const source = ((entry as { values?: unknown } | null)?.values ?? entry) as unknown;
+      if (!source || typeof source !== "object" || !instance) continue;
+      const values: Values = {};
+      for (const [name, value] of Object.entries(source as Record<string, unknown>)) {
+        if (typeof value === "string") values[name] = value;
+      }
+      if (!Object.keys(values).length) continue;
+      try {
+        localStorage.setItem(`${KEY}${SCOPE_MARK}${instance}`, JSON.stringify({ version: VERSION, values }));
+        restored += Object.keys(values).length;
+      } catch {
+        // Full or disabled storage: skip this server rather than failing the whole paste.
+      }
+    }
+    if (restored) window.dispatchEvent(new Event(PREFS_EVENT));
+    return restored;
+  }
+
   const incoming = (parsed as { values?: unknown } | null)?.values ?? parsed;
   if (!incoming || typeof incoming !== "object") return 0;
 

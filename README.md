@@ -318,6 +318,10 @@ Live state is kept in sync from Music Assistant's push events (`player_updated`,
   per login, so pointing SoMaS at a second server, or signing in as someone else on the same one,
   gives that account its own layout and switching back restores the first one's. Accounts are told
   apart by a short hash, never the token itself. The demo system keeps its own sandbox settings.
+  **Copy settings** exports every server saved on the device in one text, an entry each, and shows
+  it as a QR code so a phone can scan it instead of having it typed; pasting that back puts each
+  server's layout on its own server. A single-server copy from an older build still pastes onto
+  whatever is connected.
 - Album art drives the Now Playing backdrop; artwork URLs are resolved through `/imageproxy`,
   retrying with the bearer token when a server requires authentication.
 - Artwork falls back to deterministic generated covers, so the UI never shows broken images.
