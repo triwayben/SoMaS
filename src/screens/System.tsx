@@ -22,6 +22,7 @@ import {
 } from "../lib/players";
 import { readPref, readPrefJson, writePref, writePrefJson } from "../lib/prefs";
 import { useNav } from "../nav";
+import { GuestBadge } from "../components/GuestBadge";
 import { useApp } from "../store";
 import { useVolumeStep } from "../lib/volumeStep";
 
@@ -211,11 +212,7 @@ export function SystemScreen() {
   const header = (
     <header className="syshead">
       <h1 className="syshead__title">Your System</h1>
-      {app.permissions.role === "guest" ? (
-        <span className="pill pill--guest" title="Signed in with a guest code">
-          Guest
-        </span>
-      ) : null}
+      {app.permissions.role === "guest" ? <GuestBadge /> : null}
       <div className="syshead__actions">
         <button
           ref={menuBtnRef}

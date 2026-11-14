@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { useApp } from "../store";
+import { GuestBadge } from "./GuestBadge";
 import { Icon } from "./Icon";
 
 export function TopBar({
@@ -37,11 +38,7 @@ export function TopBar({
         {subtitle ? <div className="topbar__sub">{subtitle}</div> : null}
       </div>
       <div className="topbar__spacer" />
-      {guest ? (
-        <span className="pill pill--guest" title="Signed in with a guest code">
-          Guest
-        </span>
-      ) : null}
+      {guest ? <GuestBadge /> : null}
       {right}
     </header>
   );

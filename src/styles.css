@@ -602,6 +602,23 @@ img {
   border-color: var(--accent);
   color: var(--accent);
   margin-right: 8px;
+  /* It opens an explanation, so it should not look like a static label. */
+  cursor: pointer;
+}
+
+.pill--guest:active {
+  opacity: 0.7;
+}
+
+/* The tick is a quiet confirmation, so it stays in the accent rather than shouting. */
+.guest-allow {
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+}
+
+.guest-deny {
+  color: var(--text-2);
 }
 
 .pill-btn {
