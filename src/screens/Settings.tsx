@@ -255,6 +255,17 @@ export function SettingsScreen() {
             </span>
           </div>
         </div>
+        {/* This app's own address, so the page can be opened in a tab or shared without
+            remembering how it was reached (the ?server= hint and any #hash are dropped). */}
+        <a
+          className="link-row"
+          href={`${window.location.origin}${window.location.pathname}`}
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span>Open SoMaS in a new tab</span>
+          <Icon name="external" size={18} />
+        </a>
         {app.baseUrl && app.backendKind === "mas" ? (
           <a className="link-row" href={app.baseUrl} target="_blank" rel="noreferrer">
             <span>Open Music Assistant</span>
