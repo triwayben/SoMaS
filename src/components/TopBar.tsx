@@ -32,7 +32,13 @@ export function TopBar({
       <div className="topbar__titles">
         {brand ? (
           <span className="topbar__brand">
-            <img className="topbar__mark" src="/icons/icon-192.png" alt="" width={24} height={24} />
+            <img
+              className="topbar__mark"
+              src="/icons/icon-transparent-512.png"
+              alt=""
+              width={36}
+              height={36}
+            />
             <span className="topbar__wordmark">SoMaS</span>
           </span>
         ) : onTitle ? (
