@@ -20,7 +20,7 @@
   <Category>MediaApp:Music MediaServer:Music</Category>
   <WebUI>http://[IP]:[PORT:80]/</WebUI>
   <TemplateURL/>
-  <Icon>http://[IP]:[PORT:80]/icons/icon-512.png</Icon>
+  <Icon>http://[IP]:[PORT:80]/icons/icon-128.png</Icon>
   <ExtraParams>--restart unless-stopped</ExtraParams>
   <PostArgs/>
   <CPUset/>

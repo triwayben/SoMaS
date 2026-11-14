@@ -61,7 +61,7 @@ full-screen without browser chrome once added:
   `http://` on the LAN Chrome installs it as a shortcut instead).
 
 The artwork lives in `assets/app-icon.png` (2048×2048, transparent) and every icon in
-`public/icons/` — 180/192/512, the maskable variant and the 64px favicon — is generated from it by
+`public/icons/` — 128/180/192/512, the maskable variant and the 64px favicon — is generated from it by
 `node scripts/make-icons.mjs`. The generated PNGs are committed, so a normal build does not need to
 run it; replace the master and rerun it to change the app's icon everywhere.
 
@@ -81,8 +81,11 @@ the real address in a compose label:
 labels:
   net.unraid.docker.managed: composeman
   net.unraid.docker.webui: "http://192.168.1.20:8080/"
-  net.unraid.docker.icon: "http://192.168.1.20:8080/icons/icon-512.png"
+  net.unraid.docker.icon: "http://192.168.1.20:8080/icons/icon-128.png"
 ```
+
+Unraid's Docker tile is small, so the labels point at `icon-128.png` rather than making the browser
+shrink the 512px artwork; both are the same picture if you would rather use the larger one.
 
 `deploy/unraid/docker-compose.yml` is a ready copy — replace the address with your server's and use
 whatever host port you mapped to container port 80. Both URLs must be reachable **from the Unraid

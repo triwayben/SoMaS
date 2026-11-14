@@ -190,5 +190,8 @@ writeFileSync("public/icons/icon-512.png", icon(512));
 // maskable: keep the artwork inside the safe circle Android may crop to
 writeFileSync("public/icons/icon-maskable-512.png", icon(512, 0.1));
 writeFileSync("public/icons/favicon-64.png", icon(64));
+// Unraid draws a container's tile from a small icon, so ship a 128px one rather than
+// making it downscale the 512px artwork.
+writeFileSync("public/icons/icon-128.png", icon(128));
 
 console.log(`built icons from ${SRC} (${W}x${H})`);
