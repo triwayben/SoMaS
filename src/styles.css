@@ -4296,6 +4296,28 @@ button.group-row__main:disabled {
   animation: toastIn 0.22s ease;
 }
 
+.qr {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  margin: 4px 0 14px;
+}
+
+/* White paper with dark modules, whatever the theme: an inverted code does not scan. */
+.qr__svg {
+  width: 200px;
+  height: 200px;
+  border-radius: 10px;
+  background: #fff;
+  padding: 6px;
+  box-sizing: content-box;
+}
+
+.qr__hint {
+  max-width: 260px;
+  text-align: center;
+}
+
 .toast__text {
   min-width: 0;
 }

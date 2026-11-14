@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Icon } from "../components/Icon";
+import { QrCode } from "../components/QrCode";
 import { Section } from "../components/Media";
 import { Sheet } from "../components/Sheet";
 import { TopBar } from "../components/TopBar";
@@ -337,6 +338,12 @@ export function SettingsScreen() {
               ? "Copy this text, open SoMaS at the other address, then use Paste settings there."
               : "These settings replace the ones saved for the server you are connected to."}
           </p>
+          {move === "copy" && exported ? (
+            <QrCode
+              text={exported}
+              caption="Scan this with the camera on the other phone, then paste what it copies."
+            />
+          ) : null}
           <div className="button-row">
             {move === "copy" ? (
               <button className="btn" onClick={() => void copySettings()}>
