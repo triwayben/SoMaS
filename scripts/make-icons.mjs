@@ -187,10 +187,26 @@ function icon(size, inset = 0) {
 /**
  * Artwork on its own, with no tile behind it, for anywhere the background should show through.
  * The mark carries its own soft shadow, which is invisible on a dark background and faintly grey
- * on a pale one — the tile versions exist for surfaces that cannot take the transparency.
+ * on a pale one, and its outline is black, so `iconLight` is the version for dark surfaces.
  */
 function iconTransparent(size) {
   return encode(size, sample(size));
+}
+
+/** The transparent mark with its near-black ink turned white, so it survives a dark page. */
+function iconLight(size) {
+  const art = sample(size);
+  const out = Buffer.from(art);
+  for (let i = 0; i < size * size; i += 1) {
+    const p = i * 4;
+    if (out[p + 3] === 0) continue;
+    const luma = 0.2126 * out[p] + 0.7152 * out[p + 1] + 0.0722 * out[p + 2];
+    if (luma >= 70) continue;
+    out[p] = 245;
+    out[p + 1] = 246;
+    out[p + 2] = 248;
+  }
+  return encode(size, out);
 }
 
 /** Antialiased circular mask: transparent outside the circle, the tile kept inside it. */
@@ -291,6 +307,11 @@ writeFileSync("public/icons/icon-circle-512.png", circleIcon(512));
 // dashboard, supply its own background; the 512 is the usual size for those.
 writeFileSync("public/icons/icon-transparent-128.png", iconTransparent(128));
 writeFileSync("public/icons/icon-transparent-512.png", iconTransparent(512));
+
+// The same mark with its dark ink lifted to white, for the app's own dark themes: the house outline
+// is drawn black, so on a dark page the transparent version loses it and keeps only the blue S.
+writeFileSync("public/icons/icon-light-128.png", iconLight(128));
+writeFileSync("public/icons/icon-light-512.png", iconLight(512));
 
 // The one to point a dashboard at: a filled tile, so it reads at full size on a pale background
 // and keeps the black outline visible on a dark one.

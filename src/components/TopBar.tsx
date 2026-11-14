@@ -32,12 +32,21 @@ export function TopBar({
       <div className="topbar__titles">
         {brand ? (
           <span className="topbar__brand">
+            {/* Two files, one shown: the mark's outline is black, so on a dark page it needs the
+                version whose ink is light. Only one is displayed, so neither costs any layout. */}
             <img
-              className="topbar__mark"
+              className="topbar__mark topbar__mark--onlight"
               src="/icons/icon-transparent-512.png"
               alt=""
-              width={36}
-              height={36}
+              width={72}
+              height={72}
+            />
+            <img
+              className="topbar__mark topbar__mark--ondark"
+              src="/icons/icon-light-512.png"
+              alt=""
+              width={72}
+              height={72}
             />
             <span className="topbar__wordmark">SoMaS</span>
           </span>
