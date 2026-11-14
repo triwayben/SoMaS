@@ -18,4 +18,4 @@ services:
     labels:
       net.unraid.docker.managed: composeman
       net.unraid.docker.webui: "http://<nas-ip>:8080/"
-      net.unraid.docker.icon: "http://<nas-ip>:8080/icons/icon-128.png"
+      net.unraid.docker.icon: "http://<nas-ip>:8080/icons/icon-transparent-128.png"

@@ -184,14 +184,51 @@ function icon(size, inset = 0) {
   return encode(size, flatten(size, sample(size), inset));
 }
 
+/**
+ * Artwork on its own, with no tile behind it, for anywhere the background should show through.
+ * The mark carries its own soft shadow, which is invisible on a dark background and faintly grey
+ * on a pale one — the tile versions exist for surfaces that cannot take the transparency.
+ */
+function iconTransparent(size) {
+  return encode(size, sample(size));
+}
+
+/** Antialiased circular mask: transparent outside the circle, the tile kept inside it. */
+function circleMask(size, pixels) {
+  const radius = size / 2 - 0.5;
+  const out = Buffer.from(pixels);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const dx = x + 0.5 - size / 2;
+      const dy = y + 0.5 - size / 2;
+      const coverage = Math.min(1, Math.max(0, radius - Math.hypot(dx, dy) + 0.5));
+      const offset = (y * size + x) * 4 + 3;
+      out[offset] = Math.round(out[offset] * coverage);
+    }
+  }
+  return out;
+}
+
+function circleIcon(size) {
+  return encode(size, circleMask(size, flatten(size, sample(size))));
+}
+
 writeFileSync("public/icons/icon-180.png", icon(180));
 writeFileSync("public/icons/icon-192.png", icon(192));
 writeFileSync("public/icons/icon-512.png", icon(512));
 // maskable: keep the artwork inside the safe circle Android may crop to
 writeFileSync("public/icons/icon-maskable-512.png", icon(512, 0.1));
-writeFileSync("public/icons/favicon-64.png", icon(64));
-// Unraid draws a container's tile from a small icon, so ship a 128px one rather than
-// making it downscale the 512px artwork.
 writeFileSync("public/icons/icon-128.png", icon(128));
+
+// A round one reads as an app icon in a browser tab and on a home screen.
+writeFileSync("public/icons/favicon-64.png", circleIcon(64));
+writeFileSync("public/icons/icon-circle-512.png", circleIcon(512));
+
+// Unraid draws a container's tile from a small icon, so ship a 128px one rather than
+// making it downscale the 512px artwork. The transparent pair let a tile, or any third-party
+// dashboard, supply its own background; the 512 is the usual size for those.
+writeFileSync("public/icons/icon-transparent-128.png", iconTransparent(128));
+writeFileSync("public/icons/icon-transparent-512.png", iconTransparent(512));
+
 
 console.log(`built icons from ${SRC} (${W}x${H})`);
