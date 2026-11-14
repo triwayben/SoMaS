@@ -118,7 +118,11 @@ The Connect screen suggests a server so it does not have to be typed on every de
   remembers it on that device.
 
 1. Open the app. Enter your Music Assistant address, e.g. `music-assistant.local:8095` or
-   `192.168.1.20:8095` (add `https://` if your webserver uses TLS).
+   `192.168.1.20:8095` (add `https://` if your webserver uses TLS), or tap **Find my server** to
+   search the network. The search tries the machine serving this page (usually the same NAS or Pi)
+   and the usual local names, all on port 8095, by opening the same websocket the app would use —
+   a browser cannot enumerate a LAN, so anything on a custom port or another machine still needs
+   typing.
 2. Paste a token: **Music Assistant → Settings → Profile → Long-lived access tokens → Create**.
    Alternatively switch to *username & password*, which uses `POST /auth/login`.
 3. Hit **Connect**, or **Explore the demo system** to browse the full UI with a simulated

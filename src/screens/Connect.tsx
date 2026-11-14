@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "../components/Icon";
 import { loginWithPassword, normalizeBaseUrl } from "../api/mas";
+import { discoverServers } from "../lib/discoverServer";
 import { accountHash } from "../lib/prefs";
 import { loadSuggestedServer } from "../lib/serverSuggestion";
 import { STORAGE, useApp } from "../store";
@@ -19,6 +20,9 @@ export function ConnectScreen() {
   const [error, setError] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
   const serverTouched = useRef(false);
+  const [finding, setFinding] = useState(false);
+  const [found, setFound] = useState<string[]>([]);
+  const [findNote, setFindNote] = useState<string | null>(null);
 
   // Suggest the address this build was pointed at, so nobody has to type it per device.
   useEffect(() => {
@@ -33,6 +37,24 @@ export function ConnectScreen() {
   }, []);
 
   const connecting = app.phase === "connecting" || busy;
+
+  const findServer = async () => {
+    setFinding(true);
+    setFindNote(null);
+    try {
+      const answers = await discoverServers();
+      setFound(answers);
+      if (!answers.length) {
+        setFindNote(
+          window.location.protocol === "https:"
+            ? "Nothing answered. A page served over HTTPS will not reach a plain-HTTP server, so type the address instead."
+            : "No Music Assistant answered on this network. Check it is running, then type the address.",
+        );
+      }
+    } finally {
+      setFinding(false);
+    }
+  };
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -93,6 +115,39 @@ export function ConnectScreen() {
               you use TLS.
             </span>
           </label>
+
+          <div className="connect__find">
+            {found.length ? (
+              <div className="chips">
+                {found.map((address) => (
+                  <button
+                    key={address}
+                    type="button"
+                    className="chip"
+                    onClick={() => {
+                      serverTouched.current = true;
+                      setServer(address);
+                    }}
+                  >
+                    {address}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            {findNote ? <p className="connect__find-note">{findNote}</p> : null}
+            <button
+              className="connect__find-button"
+              type="button"
+              onClick={() => void findServer()}
+              disabled={finding}
+            >
+              {finding
+                ? "Looking around this network…"
+                : found.length
+                  ? "Look again"
+                  : "Find my server"}
+            </button>
+          </div>
 
           {mode === "token" ? (
             <label className="field">

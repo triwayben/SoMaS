@@ -4148,6 +4148,44 @@ button.group-row__main:disabled {
   background: var(--line);
 }
 
+.connect__find {
+  display: grid;
+  gap: 10px;
+  margin: -4px 0 16px;
+}
+
+.connect__find-note {
+  margin: 0;
+  color: var(--text-3);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.connect__find-button {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-2);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--line-strong, var(--line));
+  cursor: pointer;
+}
+
+.connect__find-button:hover:not(:disabled) {
+  color: var(--text-1);
+}
+
+.connect__find-button:disabled {
+  color: var(--text-3);
+  text-decoration: none;
+  cursor: default;
+}
+
 .connect__error {
   display: flex;
   align-items: flex-start;
