@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "../components/Icon";
 import { loginWithPassword, normalizeBaseUrl } from "../api/mas";
+import { accountHash } from "../lib/prefs";
 import { loadSuggestedServer } from "../lib/serverSuggestion";
 import { STORAGE, useApp } from "../store";
 
@@ -43,11 +44,14 @@ export function ConnectScreen() {
     setBusy(true);
     try {
       let accessToken = token.trim();
+      let identity: string | undefined;
       if (mode === "password") {
         const baseUrl = normalizeBaseUrl(server);
         accessToken = await loginWithPassword(baseUrl, username.trim(), password);
+        // The username is the stable half of a password login; the token it returns is per session.
+        identity = accountHash(username.trim());
       }
-      await app.connect({ baseUrl: server, token: accessToken });
+      await app.connect({ baseUrl: server, token: accessToken, accountHash: identity });
     } catch (err) {
       setError((err as Error).message || "Could not connect");
     } finally {

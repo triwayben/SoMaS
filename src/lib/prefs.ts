@@ -62,6 +62,19 @@ const CARRIED_KEYS = [
 ];
 
 /**
+ * A short, stable fingerprint of whoever is signed in. Two accounts on one server therefore keep
+ * their own layout, and the token itself is never written anywhere it is not already stored.
+ */
+export function accountHash(identity: string): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < identity.length; i += 1) {
+    hash ^= identity.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(36);
+}
+
+/**
  * Points preferences at one instance: the normalised server origin, or "demo". Everything read
  * afterwards comes from that instance's own bundle.
  */
@@ -73,6 +86,21 @@ export function setPrefScope(instance: string | null) {
     if (next) {
       localStorage.setItem(INSTANCE_KEY, next);
       let carried = 0;
+      // Settings saved for the server alone become this account's settings the first time an
+      // account-aware scope is used, so signing in does not look like a fresh install.
+      const separator = next.indexOf("|");
+      if (separator > 0) {
+        const serverOnly = next.slice(0, separator);
+        for (const key of CARRIED_KEYS) {
+          const from = `${key}${SCOPE_MARK}${serverOnly}`;
+          const value = localStorage.getItem(from);
+          if (value === null) continue;
+          const target = `${key}${SCOPE_MARK}${next}`;
+          if (localStorage.getItem(target) === null) localStorage.setItem(target, value);
+          localStorage.removeItem(from);
+          carried += 1;
+        }
+      }
       for (const key of CARRIED_KEYS) {
         const value = localStorage.getItem(key);
         if (value === null) continue;

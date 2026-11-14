@@ -152,10 +152,11 @@ Live state is kept in sync from Music Assistant's push events (`player_updated`,
 - Mobile-first: the Sonos app layout, constrained to a phone-width column, presented as a rounded
   device frame on desktop.
 - Dark and light themes (`System` follows the OS).
-- Settings belong to a server, not to the browser: service order, theme, pinned rooms, sort mode,
-  search history and grouping presets are stored per Music Assistant instance, so pointing SoMaS at
-  a second server gives it its own layout and switching back restores the first one's. The demo
-  system keeps its own sandbox settings.
+- Settings belong to a server *and* an account, not to the browser: service order, theme, pinned
+  rooms, sort mode, search history and grouping presets are stored per Music Assistant instance and
+  per login, so pointing SoMaS at a second server, or signing in as someone else on the same one,
+  gives that account its own layout and switching back restores the first one's. Accounts are told
+  apart by a short hash, never the token itself. The demo system keeps its own sandbox settings.
 - Album art drives the Now Playing backdrop; artwork URLs are resolved through `/imageproxy`,
   retrying with the bearer token when a server requires authentication.
 - Artwork falls back to deterministic generated covers, so the UI never shows broken images.

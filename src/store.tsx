@@ -21,7 +21,7 @@ import type {
   ServerInfo,
 } from "./api/types";
 import { leaderOf, queueFor } from "./lib/players";
-import { readPrefJson, scopedKey, setPrefScope, writePrefJson } from "./lib/prefs";
+import { accountHash as hashAccount, readPrefJson, scopedKey, setPrefScope, writePrefJson } from "./lib/prefs";
 
 const STORAGE = {
   server: "somas.server",
@@ -30,6 +30,7 @@ const STORAGE = {
   theme: "somas.theme",
   demo: "somas.demo",
   usage: "somas.usage",
+  account: "somas.account",
 };
 
 export type Phase = "welcome" | "connecting" | "ready" | "error";
@@ -55,6 +56,8 @@ interface ConnectOptions {
   token?: string;
   demo?: boolean;
   remember?: boolean;
+  /** Already-hashed identity, so reconnecting lands on the same settings the session saved. */
+  accountHash?: string;
 }
 
 export interface AppActions {
@@ -300,7 +303,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const connect = useCallback(
-    async ({ baseUrl = "", token = "", demo = false, remember = true }: ConnectOptions) => {
+    async ({
+      baseUrl = "",
+      token = "",
+      demo = false,
+      remember = true,
+      accountHash,
+    }: ConnectOptions) => {
       teardown();
       // Keep one canonical absolute origin in state. Artwork and links are built from it, so a
       // scheme-less "host:8095" would otherwise resolve against this app's own address.
@@ -313,9 +322,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
           return;
         }
       }
-      // Layout, theme and pins belong to this server, so point the preference store at it before
-      // any screen reads them. The demo system keeps its own sandbox settings.
-      setPrefScope(demo ? "demo" : base);
+      // Layout, theme and pins belong to one server *and* one account, so point the preference
+      // store at both before any screen reads them. The demo system keeps its own sandbox settings.
+      const identity = accountHash ?? (token ? hashAccount(token) : "");
+      setPrefScope(demo ? "demo" : identity ? `${base}|${identity}` : base);
 
       setState(() => ({
         ...initialState,
@@ -356,12 +366,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (remember && !demo) {
           localStorage.setItem(STORAGE.server, base);
           localStorage.setItem(STORAGE.token, token);
+          localStorage.setItem(STORAGE.account, identity);
           localStorage.removeItem(STORAGE.demo);
         }
         if (demo) {
           localStorage.setItem(STORAGE.demo, "1");
           localStorage.removeItem(STORAGE.server);
           localStorage.removeItem(STORAGE.token);
+          localStorage.removeItem(STORAGE.account);
         }
         setState((prev) => ({ ...prev, serverInfo: info, baseUrl: base }));
       } catch (err) {
@@ -386,6 +398,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(STORAGE.server);
     localStorage.removeItem(STORAGE.token);
     localStorage.removeItem(STORAGE.demo);
+    localStorage.removeItem(STORAGE.account);
     setState(initialState);
   }, [teardown]);
 
@@ -394,10 +407,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const demo = localStorage.getItem(STORAGE.demo) === "1";
     const server = localStorage.getItem(STORAGE.server) ?? "";
     const token = localStorage.getItem(STORAGE.token) ?? "";
+    // Reuse the identity this session was saved under, so a password login lands on its settings
+    // even though the token it received is new.
+    const accountHash = localStorage.getItem(STORAGE.account) ?? undefined;
     if (demo) {
       void connect({ demo: true });
     } else if (server) {
-      void connect({ baseUrl: server, token });
+      void connect({ baseUrl: server, token, accountHash });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
