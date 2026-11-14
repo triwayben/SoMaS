@@ -2050,79 +2050,42 @@ img {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
 }
 
-/* Theme picker: one card per theme, each with a swatch of what it looks like. */
-.theme-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin: 0 16px;
+/* Theme: the page shows one summary row, and the picker itself opens in a sheet, where each
+   palette is a card previewing its page colour, action colour and text lines. */
+.panel__row--tap {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
-.theme-option {
-  display: flex;
+.theme-chip {
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 11px 12px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: transparent;
-  color: var(--text-2);
+  gap: 8px;
+  flex: none;
   font-size: 14px;
   font-weight: 600;
-  text-align: left;
-  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+  color: var(--text-2);
 }
 
-.theme-option.is-active {
-  border-color: var(--line-strong);
-  background: var(--card);
-  color: var(--text);
+.theme-chip svg {
+  flex: none;
+  color: var(--text-3);
 }
 
 .theme-swatch {
+  display: grid;
+  place-items: center;
   width: 20px;
   height: 20px;
   flex: none;
   border-radius: 50%;
   border: 1px solid var(--line-strong);
   overflow: hidden;
-}
-
-/* One card for "follow the system", then a group per family. */
-.theme-system {
-  display: grid;
-  margin: 0 16px 14px;
-}
-
-.theme-system .theme-option {
-  width: 100%;
-}
-
-.theme-group {
-  margin: 0 16px;
-}
-
-.theme-group + .theme-group {
-  margin-top: 14px;
-}
-
-.theme-group__label {
-  padding: 0 4px 6px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--text-3);
-}
-
-.theme-group .theme-grid {
-  margin: 0;
-}
-
-/* The swatch previews the page colour with a dot of the theme's accent. */
-.theme-swatch {
-  display: grid;
-  place-items: center;
 }
 
 .theme-swatch i {
@@ -2132,12 +2095,96 @@ img {
   border-radius: 50%;
 }
 
-.theme-swatch--system {
+.theme-group__label {
+  padding: 0 4px 2px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.theme-picker {
+  display: grid;
+  gap: 14px;
+}
+
+.theme-family {
+  display: grid;
+  gap: 6px;
+}
+
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.theme-card {
+  display: grid;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: left;
+  transition: border-color 0.15s ease, color 0.15s ease, transform 0.14s ease;
+}
+
+.theme-card:active {
+  transform: scale(0.98);
+}
+
+.theme-card.is-active {
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+
+.theme-card__preview {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 4px;
+  height: 56px;
+  padding: 8px;
+  border: 1px solid rgba(127, 127, 127, 0.25);
+  border-radius: 10px;
+}
+
+.theme-card--system .theme-card__preview {
   background: linear-gradient(135deg, #ffffff 0 50%, #000000 50% 100%);
 }
 
-.theme-swatch--system {
-  background: linear-gradient(135deg, #ffffff 0 50%, #000000 50% 100%);
+.theme-card__bar {
+  height: 5px;
+  width: 46%;
+  border-radius: 999px;
+}
+
+.theme-card__line {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(127, 127, 127, 0.5);
+}
+
+.theme-card__line--short {
+  width: 62%;
+}
+
+.theme-card__label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 0 2px 2px;
+}
+
+.theme-card__label svg {
+  color: var(--accent);
+  flex: none;
 }
 
 /* --------------------------------- buttons -------------------------------- */

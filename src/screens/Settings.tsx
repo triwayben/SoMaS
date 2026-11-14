@@ -22,7 +22,7 @@ import {
 import { syncAddress, syncStampLabel } from "../lib/settingsSync";
 import { buildGuestLink, buildSettingsLink, lastGuestHere } from "../lib/shareLinks";
 import { saveVolumeStep, useVolumeStep } from "../lib/volumeStep";
-import { THEME_FAMILIES, themesIn } from "../lib/themes";
+import { THEME_FAMILIES, themeById, themesIn } from "../lib/themes";
 import { useTheme } from "../theme";
 
 
@@ -51,7 +51,9 @@ export function SettingsScreen() {
   const [changingLimit, setChangingLimit] = useState<string | null>(null);
   const [keyChangedAt, setKeyChangedAt] = useState(() => readPref("guestKeyChangedAt"));
   const [syncOn, setSyncOn] = useState(() => readPref("settingsSyncOff") !== "1");
+  const [themeOpen, setThemeOpen] = useState(false);
   const lastGuest = useRef(lastGuestHere());
+  const currentTheme = themeById(theme.resolved) ?? themeById("black")!;
 
   // The proxy decides what is switched off, so ask it rather than trusting this browser's copy.
   useEffect(() => {
@@ -212,44 +214,36 @@ export function SettingsScreen() {
     <>
       <TopBar title="Settings" onBack={nav.back} />
 
+      {/* One row says what is in use; the full set lives in a sheet, so fifteen palettes no longer
+          push everything below them off the screen. */}
       <Section title="Appearance">
-        <div className="theme-system">
+        <div className="panel">
           <button
-            className={`theme-option ${theme.mode === "system" ? "is-active" : ""}`}
-            onClick={() => theme.setMode("system")}
-            aria-pressed={theme.mode === "system"}
+            className="panel__row panel__row--tap"
+            onClick={() => setThemeOpen(true)}
+            aria-haspopup="dialog"
           >
-            <span className="theme-swatch theme-swatch--system" aria-hidden="true" />
-            Match the system
+            <span className="panel__label panel__label--stack">
+              Theme
+              <span className="panel__sublabel">
+                {theme.mode === "system"
+                  ? `Following this phone, ${(themeById(theme.resolved)?.label ?? "Black").toLowerCase()} at the moment`
+                  : "Chosen on this device"}
+              </span>
+            </span>
+            <span className="theme-chip">
+              <span
+                className="theme-swatch"
+                style={{ background: currentTheme.background }}
+                aria-hidden="true"
+              >
+                <i style={{ background: currentTheme.accent }} />
+              </span>
+              {currentTheme.label}
+              <Icon name="chevronRight" size={16} />
+            </span>
           </button>
         </div>
-        {THEME_FAMILIES.map((family) => (
-          <div className="theme-group" key={family}>
-            <p className="theme-group__label">{family}</p>
-            <div className="theme-grid">
-              {themesIn(family).map((option) => {
-                const active = theme.mode === option.id;
-                return (
-                  <button
-                    key={option.id}
-                    className={`theme-option ${active ? "is-active" : ""}`}
-                    onClick={() => theme.setMode(option.id)}
-                    aria-pressed={active}
-                  >
-                    <span
-                      className="theme-swatch"
-                      style={{ background: option.background }}
-                      aria-hidden="true"
-                    >
-                      <i style={{ background: option.accent }} />
-                    </span>
-                    {option.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ))}
       </Section>
 
       <Section title="Layout">
@@ -662,6 +656,59 @@ export function SettingsScreen() {
               </button>
             </div>
           ) : null}
+        </div>
+      </Sheet>
+
+      <Sheet
+        open={themeOpen}
+        onClose={() => setThemeOpen(false)}
+        title="Theme"
+        subtitle="Every palette, with a preview of how it looks"
+      >
+        <div className="theme-picker">
+          <button
+            className={`theme-card theme-card--system ${theme.mode === "system" ? "is-active" : ""}`}
+            onClick={() => theme.setMode("system")}
+            aria-pressed={theme.mode === "system"}
+          >
+            <span className="theme-card__preview" aria-hidden="true" />
+            <span className="theme-card__label">
+              Match the system
+              {theme.mode === "system" ? <Icon name="check" size={16} /> : null}
+            </span>
+          </button>
+          {THEME_FAMILIES.map((family) => (
+            <div className="theme-family" key={family}>
+              <p className="theme-group__label">{family}</p>
+              <div className="theme-grid">
+                {themesIn(family).map((option) => {
+                  const active = theme.mode === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      className={`theme-card ${active ? "is-active" : ""}`}
+                      onClick={() => theme.setMode(option.id)}
+                      aria-pressed={active}
+                    >
+                      <span
+                        className="theme-card__preview"
+                        style={{ background: option.background }}
+                        aria-hidden="true"
+                      >
+                        <span className="theme-card__bar" style={{ background: option.accent }} />
+                        <span className="theme-card__line" />
+                        <span className="theme-card__line theme-card__line--short" />
+                      </span>
+                      <span className="theme-card__label">
+                        {option.label}
+                        {active ? <Icon name="check" size={16} /> : null}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       </Sheet>
 
