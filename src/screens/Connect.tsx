@@ -111,8 +111,10 @@ export function ConnectScreen() {
               inputMode="url"
             />
             <span className="field__hint">
-              The host and port of your Music Assistant webserver. Include <code>https://</code> if
-              you use TLS.
+              The host and port of your Music Assistant webserver. <strong>8095 is its default</strong>
+              ; to check or change it, open Music Assistant → <code>Settings</code> →{" "}
+              <code>Core</code> → <code>Webserver</code> and read <code>TCP Port</code>. Add{" "}
+              <code>https://</code> if you turned on SSL/TLS in the same place.
             </span>
           </label>
 
