@@ -122,6 +122,18 @@ A guest phone should not be handed an admin token. `deploy/proxy` is a small ser
 front of Music Assistant: the guest points SoMaS at the proxy and types a **guest key**, the proxy
 relays to Music Assistant with the real token, and the token never reaches the browser.
 
+### Setting it up
+
+1. **Make a token in Music Assistant.** Sign in as the account the proxy should act as, then
+   *Settings → Profile → Long-lived access tokens → Create*. Copy it now — Music Assistant shows it
+   once. If you want the proxy to hold a guest's token rather than your own, create a user with the
+   **Guest** role first (Settings → Users) and make the token while signed in as that user; the
+   proxy's allowlist and Music Assistant's own role checks then agree with each other.
+2. **Choose a guest key.** Any password you are happy for guests to type. It is not a Music
+   Assistant credential — only the proxy knows it, and you can change it by restarting the proxy
+   with a different `GUEST_KEY`.
+3. **Run the proxy** somewhere that can reach Music Assistant, usually the same NAS:
+
 ```bash
 docker build -t somas-proxy deploy/proxy
 docker run -d \
@@ -150,10 +162,13 @@ services:
       GUEST_KEY: "choose-a-guest-password"
 ```
 
-What the guest does: on SoMaS's Connect screen enter the **proxy's** address (`192.168.1.20:8090`)
-and put the guest key in the token field. Everything a guest needs still works — rooms, playback,
-volume, grouping, queues, browsing, search, artwork — and the things they cannot do are hidden
-because the proxy answers `auth/me` as a guest.
+4. **Connect the guest phone.** Open SoMaS, and on the Connect screen enter the **proxy's** address
+   with its port (`192.168.1.20:8090`, or whatever port you published) and put the **guest key** in
+   the token field. Not the Music Assistant address, and not the Music Assistant token.
+5. **Check it worked.** Settings → About should read `Signed in as Guest · guest`, and the hearts
+   and *Scan library* should be gone — that means the proxy is in the middle and the app is showing
+   the guest view. Everything a guest needs still works: rooms, playback, volume, grouping, queues,
+   browsing, search and artwork.
 
 What the proxy forwards, and what it does not:
 
@@ -170,6 +185,17 @@ Worth knowing: the proxy is not a TLS terminator, so `MA_URL` must be `http://` 
 in front if you need HTTPS); it opens one Music Assistant session per connected guest; and it has a
 `/health` endpoint for container health checks. Settings, themes and layouts stay per server and per
 account in the browser, so a guest's own changes do not touch yours.
+
+When something does not work, the messages say which piece is wrong:
+
+- **"That guest key is not right"** — the token field holds something other than the `GUEST_KEY`
+  value, most often the Music Assistant token by mistake.
+- **"Could not reach Music Assistant"** — the proxy cannot open a websocket to `MA_URL` from its own
+  machine. `127.0.0.1` there means the proxy's own container, not your NAS: use the NAS address.
+- **Page loads but there is no artwork or version** — the browser is reaching the proxy, but the
+  proxy's `/imageproxy` and `/info` pass-through failed; check the proxy log for a 502.
+- **Nothing connects at all** — the guest is still pointed at Music Assistant's port instead of the
+  proxy's, or the page is on `https://` while the proxy only speaks `ws://`.
 
 ## Unraid
 
