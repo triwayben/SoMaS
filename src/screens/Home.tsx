@@ -153,7 +153,6 @@ export function HomeScreen() {
 
   const { send, providers, backendKind } = app;
   const rooms = topLevelRooms(Object.values(app.players));
-  const selectedName = app.selectedId ? app.players[app.selectedId]?.name : undefined;
 
   useEffect(() => {
     let cancelled = false;
@@ -244,9 +243,8 @@ export function HomeScreen() {
   return (
     <>
       <TopBar
-        title={selectedName ?? "My System"}
-        subtitle={`${rooms.length} ${rooms.length === 1 ? "room" : "rooms"}`}
-        onTitle={() => nav.goTab("system")}
+        brand
+        title="SoMaS"
         right={
           <>
             {backendKind === "demo" ? <span className="pill">Demo</span> : null}

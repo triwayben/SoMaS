@@ -215,29 +215,42 @@ function circleIcon(size) {
   return encode(size, circleMask(size, flatten(size, sample(size))));
 }
 
-/** Antialiased rounded-square mask, so a plate does not read as a hard white tile. */
-function roundMask(size, pixels, radiusFraction = 0.2) {
-  const radius = size * radiusFraction;
-  const out = Buffer.from(pixels);
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const dx = Math.max(radius - (x + 0.5), 0, x + 0.5 - (size - radius));
-      const dy = Math.max(radius - (y + 0.5), 0, y + 0.5 - (size - radius));
-      const coverage = Math.min(1, Math.max(0, 1.5 - Math.hypot(dx, dy)));
-      const offset = (y * size + x) * 4 + 3;
-      out[offset] = Math.round(out[offset] * coverage);
-    }
-  }
-  return out;
-}
-
 /**
  * The mark on a light plate: the house outline is drawn black, so on a dark surface — Unraid's
  * Docker tile, most dashboards — a transparent version loses the outline and reads as a stray
  * blue shape. This keeps the whole mark legible wherever the background belongs to someone else.
+ *
+ * The artwork is drawn slightly larger than the plate, because a dashboard shows this file at about
+ * 32px and the master's own padding made the mark read as small beside other containers' icons.
  */
-function iconPlate(size) {
-  return encode(size, roundMask(size, flatten(size, sample(size), 0, PLATE)));
+function iconPlate(size, zoom = 1.06) {
+  const artSize = Math.round(size * zoom);
+  const art = sample(artSize);
+  const out = Buffer.alloc(size * size * 4);
+  for (let i = 0; i < size * size; i++) {
+    out[i * 4] = PLATE[0];
+    out[i * 4 + 1] = PLATE[1];
+    out[i * 4 + 2] = PLATE[2];
+    out[i * 4 + 3] = 255;
+  }
+  const start = Math.round((size - artSize) / 2);
+  for (let y = 0; y < size; y++) {
+    const sy = y - start;
+    if (sy < 0 || sy >= artSize) continue;
+    for (let x = 0; x < size; x++) {
+      const sx = x - start;
+      if (sx < 0 || sx >= artSize) continue;
+      const s = (sy * artSize + sx) * 4;
+      const d = (y * size + x) * 4;
+      const a = art[s + 3] / 255;
+      out[d] = Math.round(art[s] * a + PLATE[0] * (1 - a));
+      out[d + 1] = Math.round(art[s + 1] * a + PLATE[1] * (1 - a));
+      out[d + 2] = Math.round(art[s + 2] * a + PLATE[2] * (1 - a));
+    }
+  }
+  // Square, edge to edge: a rounded plate leaves transparent corners, which on a dark dashboard
+  // makes the icon look inset and smaller than the containers beside it.
+  return encode(size, out);
 }
 
 writeFileSync("public/icons/icon-180.png", icon(180));

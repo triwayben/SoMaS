@@ -67,7 +67,7 @@ generated from that master by `node scripts/make-icons.mjs`:
 - `icon-128`, `icon-180`, `icon-192`, `icon-512` and `icon-maskable-512` — the mark on its dark tile,
   which is what the app, a home screen and Android's maskable slot use.
 - `favicon-64` and `icon-circle-512` — the same, cut to a circle, for a tab or a round app icon.
-- `icon-plate-128` and `icon-plate-512` — the mark on a light rounded plate. **This is the pair to
+- `icon-plate-128` and `icon-plate-512` — the mark on a light square plate. **This is the pair to
   point Unraid or any dashboard at:** the house outline in the artwork is black, so it disappears
   on a dark background, and the plate is what keeps it visible.
 - `icon-transparent-128` and `icon-transparent-512` — no plate at all, for a surface that supplies
@@ -320,7 +320,9 @@ manifest use.
 
 The plate version is the one to publish: the mark's house outline is black, and the transparent
 variant is 9% opaque pixels at a median brightness of 75/255, so on a dark dashboard only the blue S
-survives.
+survives. The plate is square and edge to edge, with the artwork scaled slightly past the margins,
+because rounded corners leave transparencies that make the icon read as inset and small beside the
+containers around it.
 
 To keep the picture on your own network instead, point the container's **Icon URL** at
 `http://<nas-ip>:<port>/icons/icon-plate-128.png`. That address has to be the NAS's own, and it only
