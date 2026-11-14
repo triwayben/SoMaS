@@ -65,6 +65,57 @@ The artwork lives in `assets/app-icon.png` (2048×2048, transparent) and every i
 `node scripts/make-icons.mjs`. The generated PNGs are committed, so a normal build does not need to
 run it; replace the master and rerun it to change the app's icon everywhere.
 
+## In a container
+
+Every push to `main` builds an image and publishes it to GitHub Container Registry, so nothing has
+to be installed on the machine that serves it:
+
+```bash
+docker pull ghcr.io/triwayben/somas:latest
+docker run -d \
+  --name somas \
+  --restart unless-stopped \
+  -p 8080:80 \
+  ghcr.io/triwayben/somas:latest
+```
+
+The image is an nginx build of the static bundle and listens on **port 80**, so map whichever host
+port you like — `8080` above, as `http://192.168.1.20:8080/`. Two tags are published: `latest` and
+the full commit SHA, which is what to pin if you would rather upgrade deliberately. It is built for
+**Linux amd64** only (the Actions runner's own platform); on a Raspberry Pi or other arm64 host,
+build it locally with `docker build -t somas .` and run that.
+
+The same thing as Compose, in a `docker-compose.yml` next to your other services:
+
+```yaml
+services:
+  somas:
+    image: ghcr.io/triwayben/somas:latest
+    container_name: somas
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+```
+
+Things worth knowing about how it runs:
+
+- **The container never talks to Music Assistant.** The browser does, directly — the address and
+token are entered on the Connect screen and kept in that browser. So the phone or laptop running
+SoMaS has to reach Music Assistant, not the container, and there is nothing to configure, no
+volumes, no environment variables and no network mode.
+- **Port 80 is the only thing it does**, so a reverse proxy or a different host port is all you
+  need to pick. There is a built-in healthcheck that gets `/` from inside the container.
+- **Updating** is `docker pull ghcr.io/triwayben/somas:latest` and then recreating the container
+  (`docker compose up -d` does both). `index.html` and `config.json` are served no-cache while the
+  hashed asset files are cached forever, so a reload after an update picks up the new build without
+  a hard refresh.
+- **Pre-filling the address** needs no rebuild: mount your own settings file over the shipped one
+  with `-v /path/to/config.json:/usr/share/nginx/html/config.json:ro`, holding
+  `{ "server": "music-assistant.local:8095" }`. `?server=host:port` on the URL also works.
+- **`https://`** means terminating TLS in front of the container (reverse proxy), because nginx here
+  serves plain HTTP. If the page is on HTTPS, Music Assistant must be too, or the browser blocks the
+  websocket as mixed content.
+
 ## Unraid
 
 Unraid builds a container's Docker tile — the icon, and the **WebUI** button that opens the app —
