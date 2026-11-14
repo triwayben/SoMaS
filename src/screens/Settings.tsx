@@ -245,6 +245,15 @@ export function SettingsScreen() {
             <span className="panel__label">Music backend</span>
             <span className="panel__value panel__value--text">Music Assistant</span>
           </div>
+          <div className="panel__row">
+            <span className="panel__label">Settings for</span>
+            <span className="panel__value panel__value--text">
+              {/* Settings are stored per server and per account, so name whichever one is loaded. */}
+              {app.backendKind === "demo"
+                ? "This device's demo system"
+                : app.baseUrl.replace(/^https?:\/\//, "") || "No server"}
+            </span>
+          </div>
         </div>
         {app.baseUrl && app.backendKind === "mas" ? (
           <a className="link-row" href={app.baseUrl} target="_blank" rel="noreferrer">
