@@ -4,6 +4,10 @@
 # address (e.g. 192.168.1.20). The three net.unraid.docker.* labels are what give the container its
 # icon and its clickable WebUI button on the Unraid Docker and Dashboard pages: without them the
 # tile is a question mark with no link, even though the app itself works.
+#
+# The image already carries all three, but with managed=dockerman, because a plain `docker run` has
+# no way to add labels. A stack sets managed=composeman here so Compose Manager owns the container
+# instead; drop the icon and webui lines entirely if you would rather inherit the image's.
 services:
   somas:
     image: ghcr.io/triwayben/somas:latest

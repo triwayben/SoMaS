@@ -124,9 +124,14 @@ as *managed* before Unraid uses those labels, which is the piece that is easy to
 `net.unraid.docker.managed` the tile stays a question mark with no button, however the app itself
 runs.
 
-The image already carries the icon and webui labels, so a compose stack only needs the managed
-marker and the address spelled out — [IP]/[PORT:n] placeholders are a template feature, so write
-the real address in a compose label:
+The image carries all three, including `net.unraid.docker.managed=dockerman`, so a container
+started with a plain `docker run` already shows its mark and its button on the Docker and Dashboard
+pages. Nothing needs adding by hand.
+
+A Compose Manager stack should say `managed=composeman` in its own labels, so Compose owns the
+container rather than dockerman. The icon and webui lines are then optional — the image's are
+inherited — and a compose label that sets them has to spell the address out, because [IP]/[PORT:n]
+placeholders are a template feature:
 
 ```yaml
 labels:
