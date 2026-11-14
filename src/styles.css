@@ -512,13 +512,13 @@ img {
    the master's margin, so it is pulled in slightly to sit level with the text. */
 .topbar__mark {
   flex: none;
-  width: 36px;
-  height: 36px;
-  margin: -3px -2px -3px -3px;
+  width: 72px;
+  height: 72px;
+  margin: -8px -6px -8px -8px;
 }
 
 .topbar__wordmark {
-  font-size: 23px;
+  font-size: 30px;
   font-weight: 600;
   letter-spacing: 0.005em;
   color: var(--text);
