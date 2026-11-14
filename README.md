@@ -322,8 +322,9 @@ manifest use.
 The tile version is the one to publish. The transparent variant is 9% opaque pixels at a median
 brightness of 75/255, and a light plate vanishes into a pale dashboard, so either leaves a thin
 outline that reads as a small icon. `icon-tile-128.png` fills the square with a slate tile, lifts
-the black outline to white so it shows on any background, and scales the artwork slightly past the
-master's own margins.
+the black outline to white so it shows on any background, and scales the mark to fit 86% of the box:
+the master is framed with generous margins (the mark spans only half the canvas width, and 9% of its
+pixels are opaque), so using the file as drawn wastes most of a tile Unraid only draws at 32px.
 
 To keep the picture on your own network instead, point the container's **Icon URL** at
 `http://<nas-ip>:<port>/icons/icon-tile-128.png`. That address has to be the NAS's own, and it only
