@@ -290,10 +290,13 @@ export function NowPlaying({ onClose }: { onClose: () => void }) {
             <Icon name="radio" size={22} />
             <span>{activeSourceLabel(player, app.providers)}</span>
           </button>
-          <button className="np__action" onClick={toggleFavorite}>
-            <Icon name={isFav ? "heartFilled" : "heart"} size={22} />
-            <span>{isFav ? "Favorited" : "Favorite"}</span>
-          </button>
+          {/* Favourites are a library write, which a guest is not allowed to make. */}
+          {app.permissions.libraryWrite ? (
+            <button className="np__action" onClick={toggleFavorite}>
+              <Icon name={isFav ? "heartFilled" : "heart"} size={22} />
+              <span>{isFav ? "Favorited" : "Favorite"}</span>
+            </button>
+          ) : null}
         </div>
       </div>
 

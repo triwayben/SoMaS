@@ -52,21 +52,24 @@ export function ItemActionsSheet({
           <Icon name="addQueue" size={20} />
           <span>Add to queue</span>
         </button>
-        <button
-          className="action"
-          onClick={() => {
-            void app.setFavorite(
-              uri,
-              !item.favorite,
-              item.media_type ?? undefined,
-              item.item_id ?? undefined,
-            );
-            onClose();
-          }}
-        >
-          <Icon name={item.favorite ? "heartFilled" : "heart"} size={20} />
-          <span>{item.favorite ? "Remove from favorites" : "Add to favorites"}</span>
-        </button>
+        {/* Favourites are a library write, which a guest is not allowed to make. */}
+        {app.permissions.libraryWrite ? (
+          <button
+            className="action"
+            onClick={() => {
+              void app.setFavorite(
+                uri,
+                !item.favorite,
+                item.media_type ?? undefined,
+                item.item_id ?? undefined,
+              );
+              onClose();
+            }}
+          >
+            <Icon name={item.favorite ? "heartFilled" : "heart"} size={20} />
+            <span>{item.favorite ? "Remove from favorites" : "Add to favorites"}</span>
+          </button>
+        ) : null}
         <button
           className="action"
           onClick={() => {

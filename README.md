@@ -215,6 +215,11 @@ Live state is kept in sync from Music Assistant's push events (`player_updated`,
 - Mobile-first: the Sonos app layout, constrained to a phone-width column, presented as a rounded
   device frame on desktop.
 - Dark and light themes (`System` follows the OS).
+- The app asks the server who is signed in (`auth/me`) and what that role may do (`auth/scopes`),
+  then hides controls that could only fail: a **guest** keeps full player, queue and room-settings
+  control but loses the favourites hearts and *Scan library*, because both change the library.
+  Servers too old to answer both commands leave everything visible. To try it, open the demo system
+  with `?demoRole=guest`.
 - Settings belong to a server *and* an account, not to the browser: service order, theme, pinned
   rooms, sort mode, search history and grouping presets are stored per Music Assistant instance and
   per login, so pointing SoMaS at a second server, or signing in as someone else on the same one,

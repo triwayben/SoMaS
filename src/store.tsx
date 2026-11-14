@@ -20,6 +20,7 @@ import type {
   QueueItem,
   ServerInfo,
 } from "./api/types";
+import { permissionsFrom, UNRESTRICTED, type Permissions } from "./lib/permissions";
 import { leaderOf, queueFor } from "./lib/players";
 import { accountHash as hashAccount, readPrefJson, scopedKey, setPrefScope, writePrefJson } from "./lib/prefs";
 
@@ -49,6 +50,8 @@ export interface AppState {
   configProviders: Array<Record<string, unknown>>;
   selectedId: string | null;
   queueItems: Record<string, QueueItem[]>;
+  /** Who is signed in and what the server lets them do. */
+  permissions: Permissions;
 }
 
 interface ConnectOptions {
@@ -115,6 +118,22 @@ async function fetchProviders(backend: Backend): Promise<MusicProvider[]> {
   return [];
 }
 
+/** Ask the server who this token belongs to. A server too old to answer leaves everything on. */
+async function readPermissions(backend: Backend): Promise<Permissions> {
+  try {
+    const user = await backend.send("auth/me");
+    let roleScopes: unknown;
+    try {
+      roleScopes = await backend.send("auth/scopes");
+    } catch {
+      roleScopes = undefined;
+    }
+    return permissionsFrom(user, roleScopes);
+  } catch {
+    return UNRESTRICTED;
+  }
+}
+
 const initialState: AppState = {
   phase: "welcome",
   backendKind: "mas",
@@ -127,6 +146,7 @@ const initialState: AppState = {
   configProviders: [],
   selectedId: null,
   queueItems: {},
+  permissions: UNRESTRICTED,
 };
 
 function pickDefaultPlayer(players: Player[], previous: string | null): string | null {
@@ -348,8 +368,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (backendRef.current !== backend) return;
         setState((prev) => {
           if (conn === "connected" && prev.phase === "ready") {
-            // Reconnect: re-pull authoritative state.
+            // Reconnect: re-pull authoritative state, and the role in case it was changed.
             void hydrate(backend);
+            void readPermissions(backend).then((permissions) =>
+              setState((current) => ({ ...current, permissions })),
+            );
           }
           return {
             ...prev,
@@ -375,7 +398,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           localStorage.removeItem(STORAGE.token);
           localStorage.removeItem(STORAGE.account);
         }
-        setState((prev) => ({ ...prev, serverInfo: info, baseUrl: base }));
+        const permissions = await readPermissions(backend);
+        setState((prev) => ({ ...prev, serverInfo: info, baseUrl: base, permissions }));
       } catch (err) {
         backend.close();
         backendRef.current = null;
@@ -794,6 +818,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const setFavorite = useCallback(
     async (uri: string, favorite: boolean, mediaType?: string, itemId?: string) => {
+      if (!stateRef.current.permissions.libraryWrite) {
+        notify("Your Music Assistant account can only read the library");
+        return;
+      }
       try {
         if (favorite) {
           await send("music/favorites/add_item", { item: uri });

@@ -20,6 +20,31 @@ import type {
  */
 
 const now = () => Date.now() / 1000;
+
+/** The scopes Music Assistant gives a guest, so `?demoRole=guest` behaves like the real thing. */
+const GUEST_SCOPES = [
+  "library.read",
+  "players.read",
+  "players.control",
+  "queues.read",
+  "queues.control",
+  "providers.read",
+  "config.players.read",
+];
+
+/**
+ * The demo system normally signs in as an admin. `?demoRole=guest` (or any other role name) makes
+ * it answer like that role, which is the only way to try the guest view without a second account.
+ */
+function demoRole(): string {
+  try {
+    return (new URLSearchParams(window.location.search).get("demoRole") ?? "admin")
+      .toLowerCase()
+      .trim();
+  } catch {
+    return "admin";
+  }
+}
 const id = (prefix: string, value: string) =>
   `${prefix}--${value.toLowerCase().replace(/[^a-z0-9]+/g, "")}`;
 
@@ -683,6 +708,9 @@ export function createDemoBackend(): Backend {
 
   const commands: Record<string, (args: Record<string, any>) => unknown> = {
     auth: () => ({ authenticated: true, user: "demo" }),
+    "auth/me": () => ({ user_id: "demo", username: "Demo", role: demoRole() }),
+    "auth/scopes": () =>
+      demoRole() === "admin" ? { admin: ["all"] } : { [demoRole()]: GUEST_SCOPES },
     "players/all": () => [...players.values()],
     "players/get_by_name": (args) =>
       [...players.values()].find((p) => p.name.toLowerCase() === String(args.name).toLowerCase()),

@@ -180,7 +180,7 @@ export function SettingsScreen() {
           </div>
         </div>
         <div className="button-row">
-          {app.backendKind === "mas" ? (
+          {app.backendKind === "mas" && app.permissions.libraryWrite ? (
             <button className="btn btn--ghost" onClick={() => void syncLibrary()} disabled={syncing}>
               <Icon name="refresh" size={18} />
               {syncing ? "Scanning…" : "Scan library"}
@@ -245,6 +245,15 @@ export function SettingsScreen() {
             <span className="panel__label">Music backend</span>
             <span className="panel__value panel__value--text">Music Assistant</span>
           </div>
+          {app.permissions.username ? (
+            <div className="panel__row">
+              <span className="panel__label">Signed in as</span>
+              <span className="panel__value panel__value--text">
+                {app.permissions.username}
+                {app.permissions.role ? ` · ${app.permissions.role}` : ""}
+              </span>
+            </div>
+          ) : null}
           <div className="panel__row">
             <span className="panel__label">Settings for</span>
             <span className="panel__value panel__value--text">

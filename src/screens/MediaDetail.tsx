@@ -101,20 +101,23 @@ export function MediaDetailScreen({ item }: { item: MediaItem }) {
             <Icon name="playNext" size={18} />
             Play next
           </button>
-          <button
-            className="icon-btn icon-btn--outline"
-            aria-label={item.favorite ? "Remove from favorites" : "Add to favorites"}
-            onClick={() =>
-              void app.setFavorite(
-                item.uri ?? "",
-                !item.favorite,
-                item.media_type ?? undefined,
-                item.item_id ?? undefined,
-              )
-            }
-          >
-            <Icon name={item.favorite ? "heartFilled" : "heart"} size={20} />
-          </button>
+          {/* Favourites are a library write, which a guest is not allowed to make. */}
+          {app.permissions.libraryWrite ? (
+            <button
+              className="icon-btn icon-btn--outline"
+              aria-label={item.favorite ? "Remove from favorites" : "Add to favorites"}
+              onClick={() =>
+                void app.setFavorite(
+                  item.uri ?? "",
+                  !item.favorite,
+                  item.media_type ?? undefined,
+                  item.item_id ?? undefined,
+                )
+              }
+            >
+              <Icon name={item.favorite ? "heartFilled" : "heart"} size={20} />
+            </button>
+          ) : null}
         </div>
       </div>
 
