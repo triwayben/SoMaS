@@ -222,7 +222,24 @@ function circleIcon(size) {
  * full size in both of Unraid's themes, and the artwork is scaled slightly past the master's own
  * margins so the mark sits as wide as it can without clipping the roof.
  */
-function iconTile(size, zoom = 1.04, tint = [0x3c, 0x4b, 0x60]) {
+function iconTile(size, fill = 0.86, tint = [0x3c, 0x4b, 0x60]) {
+  // The master is drawn with its own generous margin — the mark covers only half the canvas width —
+  // so scale it to the box instead of trusting the file's framing. Measured at this size, so the
+  // fit is the same for every output resolution.
+  const probe = sample(size);
+  let minX = size, minY = size, maxX = -1, maxY = -1;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      if (probe[(y * size + x) * 4 + 3] < 24) continue;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+  }
+  const inkW = maxX - minX + 1;
+  const inkH = maxY - minY + 1;
+  const zoom = (fill * size) / Math.max(inkW, inkH);
   const artSize = Math.round(size * zoom);
   const art = sample(artSize);
   const out = Buffer.alloc(size * size * 4);
