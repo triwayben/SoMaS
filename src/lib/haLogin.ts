@@ -65,6 +65,8 @@ function signedOutCommand<T>(base: string, command: string, args: object = {}): 
 export interface HaLoginResult {
   server: string;
   token: string;
+  /** True only when this sign-in began as the popup of an embedded SoMaS. */
+  viaPopup?: boolean;
 }
 
 /** Whether this Music Assistant offers Home Assistant sign-in. Quietly false when unreachable. */
@@ -120,7 +122,9 @@ export async function startHaLogin(server: string): Promise<void> {
   const back = new URL(window.location.href);
   back.search = "";
   back.hash = "";
-  back.searchParams.set(RETURN_MARK, "ha");
+  // Say how the sign-in started. Only a popup should hand its token to an opener: a tab opened
+  // from a bookmark manager or a dashboard link can have an opener too, and must sign in itself.
+  back.searchParams.set(RETURN_MARK, popup ? "ha-popup" : "ha");
   back.searchParams.set("server", base);
 
   try {
@@ -153,14 +157,15 @@ export async function startHaLogin(server: string): Promise<void> {
  */
 export function takeHaLoginReturn(): HaLoginResult | null {
   const url = new URL(window.location.href);
-  if (url.searchParams.get(RETURN_MARK) !== "ha") return null;
+  const mark = url.searchParams.get(RETURN_MARK);
+  if (mark !== "ha" && mark !== "ha-popup") return null;
   const token = url.searchParams.get("code") ?? "";
   const server = url.searchParams.get("server") ?? "";
   url.searchParams.delete(RETURN_MARK);
   url.searchParams.delete("code");
   url.searchParams.delete("server");
   window.history.replaceState(window.history.state, "", url.toString());
-  return token && server ? { server, token } : null;
+  return token && server ? { server, token, viaPopup: mark === "ha-popup" } : null;
 }
 
 /**
@@ -168,11 +173,17 @@ export function takeHaLoginReturn(): HaLoginResult | null {
  * Returns false when there is nobody to hand it to, and the sign-in finishes here instead.
  */
 export function handHaLoginToOpener(result: HaLoginResult): boolean {
+  if (!result.viaPopup) return false;
   const opener = window.opener as Window | null;
   if (!opener || opener === window) return false;
   try {
-    // Only an opener on this same origin can receive it, so the token never leaves SoMaS.
-    opener.postMessage({ type: MESSAGE_TYPE, ...result }, window.location.origin);
+    // The SoMaS that opened this popup is on this same origin; anything else (a dashboard or a
+    // page that merely opened this tab) throws here, and the sign-in finishes in this window.
+    if (opener.location.origin !== window.location.origin) return false;
+    opener.postMessage(
+      { type: MESSAGE_TYPE, server: result.server, token: result.token },
+      window.location.origin,
+    );
   } catch {
     return false;
   }
