@@ -116,6 +116,61 @@ volumes, no environment variables and no network mode.
   serves plain HTTP. If the page is on HTTPS, Music Assistant must be too, or the browser blocks the
   websocket as mixed content.
 
+## Guests without giving away the token
+
+A guest phone should not be handed an admin token. `deploy/proxy` is a small service that sits in
+front of Music Assistant: the guest points SoMaS at the proxy and types a **guest key**, the proxy
+relays to Music Assistant with the real token, and the token never reaches the browser.
+
+```bash
+docker build -t somas-proxy deploy/proxy
+docker run -d \
+  --name somas-proxy \
+  --restart unless-stopped \
+  -p 8090:8090 \
+  -e MA_URL=http://192.168.1.20:8095 \
+  -e MA_TOKEN=paste-a-long-lived-token \
+  -e GUEST_KEY=choose-a-guest-password \
+  somas-proxy
+```
+
+Or as a second service beside the app:
+
+```yaml
+services:
+  somas-proxy:
+    build: ./deploy/proxy
+    container_name: somas-proxy
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    environment:
+      MA_URL: "http://192.168.1.20:8095"
+      MA_TOKEN: "paste-a-long-lived-token"
+      GUEST_KEY: "choose-a-guest-password"
+```
+
+What the guest does: on SoMaS's Connect screen enter the **proxy's** address (`192.168.1.20:8090`)
+and put the guest key in the token field. Everything a guest needs still works — rooms, playback,
+volume, grouping, queues, browsing, search, artwork — and the things they cannot do are hidden
+because the proxy answers `auth/me` as a guest.
+
+What the proxy forwards, and what it does not:
+
+- **Allowed:** `players/*`, `player_queues/*`, library reads under `music/*`, `providers` and
+  `config/providers`, plus `/info` and `/imageproxy` for the banner and covers.
+- **Refused**, with a readable error instead of a server rejection: `music/favorites/add_item`,
+  `music/favorites/remove_item`, `music/sync`, `players/add_currently_playing_to_favorites`,
+  everything outside the list above (`config/*`, user management), and any `auth/*` it does not
+  answer itself.
+- **Held back:** the real token, which only ever exists in the proxy's environment. A guest who
+  opens the browser's network tab sees their own guest key and nothing else.
+
+Worth knowing: the proxy is not a TLS terminator, so `MA_URL` must be `http://` (put a reverse proxy
+in front if you need HTTPS); it opens one Music Assistant session per connected guest; and it has a
+`/health` endpoint for container health checks. Settings, themes and layouts stay per server and per
+account in the browser, so a guest's own changes do not touch yours.
+
 ## Unraid
 
 Unraid builds a container's Docker tile — the icon, and the **WebUI** button that opens the app —
