@@ -596,6 +596,14 @@ img {
   color: var(--text-2);
 }
 
+/* Named so a visitor knows why some controls are missing, rather than assuming a bug. */
+.pill--guest {
+  flex: none;
+  border-color: var(--accent);
+  color: var(--accent);
+  margin-right: 8px;
+}
+
 .pill-btn {
   display: inline-flex;
   align-items: center;

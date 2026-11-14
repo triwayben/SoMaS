@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useApp } from "../store";
 import { Icon } from "./Icon";
 
 export function TopBar({
@@ -14,6 +15,9 @@ export function TopBar({
   onBack?: () => void;
   right?: ReactNode;
 }) {
+  // A guest session looks almost like any other, so name it rather than let an absent control be
+  // the only clue that this phone is not the owner's.
+  const guest = useApp().permissions.role === "guest";
   return (
     <header className="topbar">
       {onBack ? (
@@ -33,6 +37,11 @@ export function TopBar({
         {subtitle ? <div className="topbar__sub">{subtitle}</div> : null}
       </div>
       <div className="topbar__spacer" />
+      {guest ? (
+        <span className="pill pill--guest" title="Signed in with a guest code">
+          Guest
+        </span>
+      ) : null}
       {right}
     </header>
   );

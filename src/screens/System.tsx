@@ -211,6 +211,11 @@ export function SystemScreen() {
   const header = (
     <header className="syshead">
       <h1 className="syshead__title">Your System</h1>
+      {app.permissions.role === "guest" ? (
+        <span className="pill pill--guest" title="Signed in with a guest code">
+          Guest
+        </span>
+      ) : null}
       <div className="syshead__actions">
         <button
           ref={menuBtnRef}
