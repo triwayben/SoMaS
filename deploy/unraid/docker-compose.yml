@@ -4,8 +4,8 @@
 # address (e.g. 192.168.1.20). These labels are what give the container its clickable WebUI button
 # on the Unraid Docker and Dashboard pages.
 #
-# The icon needs no label at all: the image carries net.unraid.docker.icon pointing at a public
-# https copy of the mark, because Unraid downloads the picture itself and does not expand
+# The icon needs no label at all: the image carries net.unraid.docker.icon pointing at the committed
+# artwork in this repository, because Unraid downloads the picture itself and does not expand
 # [IP]/[PORT:n] in an icon it fetches. The image carries managed=dockerman and the webui link too,
 # because a plain `docker run` has no way to add labels; a stack overrides `managed` to
 # composeman so Compose Manager owns the container.

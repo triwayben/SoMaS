@@ -299,14 +299,17 @@ app works as before and the guest features simply have nowhere to live.
 
 ### The icon comes with the image
 
-The image carries `net.unraid.docker.icon`, pointing at a public https copy of the mark:
+The image carries `net.unraid.docker.icon`, pointing at the committed artwork in this repository:
 
 ```
-https://site-85f3afb0a77c4fbba90637ca3473c156.freebuff.page/icon-plate-128.png
+https://raw.githubusercontent.com/triwayben/SoMaS/main/public/icons/icon-plate-128.png
 ```
 
-Adding the container is the whole setup — there is no Icon URL to type. That copy is published from
-`deploy/icon-host`, which is a dozen lines serving the PNGs in `public/icons/` and nothing else.
+Adding the container is the whole setup — there is no Icon URL to type. The repository is public, so
+GitHub serves that file directly, and `public/icons/` stays the single source: replacing the
+master and rerunning `node scripts/make-icons.mjs` updates the tile as well as the app.
+(`https://cdn.jsdelivr.net/gh/triwayben/SoMaS@main/public/icons/icon-plate-128.png` is the same file
+through jsDelivr if GitHub's raw host is ever blocked.)
 
 A public address is required, not a shortcut. Unraid downloads a container's icon **itself, on the
 server**, before it knows anything about where the container is. It expands `[IP]` and `[PORT:n]`
@@ -335,7 +338,7 @@ docker inspect somas --format '{{json .Config.Labels}}'
 
 # can the Unraid server itself download the picture?
 curl -o /dev/null -s -w "%{http_code} %{content_type}\n" \
-  https://site-85f3afb0a77c4fbba90637ca3473c156.freebuff.page/icon-plate-128.png
+  https://raw.githubusercontent.com/triwayben/SoMaS/main/public/icons/icon-plate-128.png
 ```
 
 The `curl` must print `200 image/png`; `000` or a connection error means the server has no outbound

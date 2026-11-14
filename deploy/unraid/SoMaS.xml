@@ -3,10 +3,10 @@
   Unraid template for SoMaS.
 
   Copy this file to /boot/config/plugins/dockerMan/templates-user/ on the server, then use
-  Docker -> Add Container and pick "SoMaS" from the template list. The icon is a public https copy
-  of the mark, so it loads with no address to fill in: Unraid downloads a container's icon itself,
-  on the server, before it knows the container's address, and does not expand [IP]/[PORT:n] in an
-  icon it fetches. The image carries the same label, so this field is only a convenience.
+  Docker -> Add Container and pick "SoMaS" from the template list. The icon is the committed artwork
+  in this repository, so it loads with no address to fill in: Unraid downloads a container's icon
+  itself, on the server, before it knows the container's address, and does not expand [IP]/[PORT:n]
+  in an icon it fetches. The image carries the same label, so this field is only a convenience.
 
   icon-plate-128.png is the variant with a light plate behind the mark, so the black house outline
   in the artwork stays visible on Unraid's dark dashboard.
@@ -25,7 +25,7 @@
   <Category>MediaApp:Music MediaServer:Music</Category>
   <WebUI>http://[IP]:[PORT:80]/</WebUI>
   <TemplateURL/>
-  <Icon>https://site-85f3afb0a77c4fbba90637ca3473c156.freebuff.page/icon-plate-128.png</Icon>
+  <Icon>https://raw.githubusercontent.com/triwayben/SoMaS/main/public/icons/icon-plate-128.png</Icon>
   <ExtraParams>--restart unless-stopped</ExtraParams>
   <PostArgs/>
   <CPUset/>
