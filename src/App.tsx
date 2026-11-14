@@ -17,7 +17,8 @@ import { QueueScreen } from "./screens/Queue";
 import { SearchScreen } from "./screens/Search";
 import { SettingsScreen } from "./screens/Settings";
 import { SystemScreen } from "./screens/System";
-import { AppProvider, useApp } from "./store";
+import { syncOnConnect, watchSettings } from "./lib/settingsSync";
+import { AppProvider, STORAGE, useApp } from "./store";
 import { takeMigrationNotice } from "./lib/migrationNotice";
 import { importPrefs } from "./lib/prefs";
 import { clearLaunchHash, readLaunch, type ImportLaunch } from "./lib/shareLinks";
@@ -95,6 +96,32 @@ function Shell() {
       cancelled = true;
     };
   }, []);
+
+  // The account's own copy of the layout: adopted when it is newer than this device's, and kept
+  // up to date afterwards. A phone that has never been here therefore needs no link at all.
+  useEffect(() => {
+    // A guest's layout is theirs, and the guest key is not even a Music Assistant login.
+    if (app.phase !== "ready" || app.backendKind !== "mas" || guest) return;
+    const token = localStorage.getItem(STORAGE.token) ?? "";
+    if (!token) return;
+    let cancelled = false;
+    void syncOnConnect(token).then((result) => {
+      if (cancelled || result !== "adopted") return;
+      app.notify("Settings came with your account");
+      // Theme, order and pins are read as the app renders, so show them straight away.
+      window.setTimeout(() => window.location.reload(), 900);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [app.phase, app.backendKind, app.notify, guest]);
+
+  useEffect(() => {
+    if (app.phase !== "ready" || app.backendKind !== "mas" || guest) return;
+    const token = localStorage.getItem(STORAGE.token) ?? "";
+    if (!token) return;
+    return watchSettings(token);
+  }, [app.phase, app.backendKind, guest]);
 
   const carrySettings = () => {
     if (!incoming) return;

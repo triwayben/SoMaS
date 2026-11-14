@@ -19,6 +19,7 @@ import {
   type GuestFeature,
   type GuestLimits,
 } from "../lib/guestLimits";
+import { syncAddress, syncStampLabel } from "../lib/settingsSync";
 import { buildGuestLink, buildSettingsLink, lastGuestHere } from "../lib/shareLinks";
 import { saveVolumeStep, useVolumeStep } from "../lib/volumeStep";
 import { THEME_FAMILIES, themesIn } from "../lib/themes";
@@ -49,6 +50,7 @@ export function SettingsScreen() {
   const [limits, setLimits] = useState<GuestLimits | null>(null);
   const [changingLimit, setChangingLimit] = useState<string | null>(null);
   const [keyChangedAt, setKeyChangedAt] = useState(() => readPref("guestKeyChangedAt"));
+  const [syncOn, setSyncOn] = useState(() => readPref("settingsSyncOff") !== "1");
   const lastGuest = useRef(lastGuestHere());
 
   // The proxy decides what is switched off, so ask it rather than trusting this browser's copy.
@@ -117,6 +119,17 @@ export function SettingsScreen() {
       result.persisted
         ? "New guest key: old codes and their sessions no longer work"
         : "New guest key until the proxy restarts — it has no writable key file",
+    );
+  };
+
+  const toggleSync = () => {
+    const next = !syncOn;
+    setSyncOn(next);
+    writePref("settingsSyncOff", next ? "0" : "1");
+    app.notify(
+      next
+        ? `Settings will follow your account on ${syncAddress()}`
+        : "This device keeps its own settings",
     );
   };
 
@@ -249,6 +262,24 @@ export function SettingsScreen() {
                 new phone, and every server's layout comes across in one go.
               </span>
             </span>
+          </div>
+          <div className="panel__row">
+            <span className="panel__label panel__label--stack">
+              Follow my account
+              <span className="panel__sublabel">
+                Keeps a copy on {syncAddress()} so a phone that signs in opens with this layout, and
+                nothing has to be sent to it. Last exchange: {syncStampLabel() ?? "not yet"}.
+              </span>
+            </span>
+            <button
+              className={`switch ${syncOn ? "is-on" : ""}`}
+              role="switch"
+              aria-checked={syncOn}
+              aria-label="Follow my account"
+              onClick={toggleSync}
+            >
+              <span className="switch__knob" />
+            </button>
           </div>
           {migrated ? (
             <div className="panel__row">

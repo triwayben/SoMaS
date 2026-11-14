@@ -17,6 +17,7 @@
  *   PORT       port to listen on (default 8090)
  *   GUEST_KEY_FILE  where a replaced key is kept (default /data/guest-key)
  *   GUEST_LIMITS_FILE  which optional powers guests may use (default /data/guest-limits.json)
+ *   SETTINGS_DIR  a copy of each account's layout, so a new phone picks it up (default /data/settings)
  *
  * The key can be replaced at runtime from SoMaS (Settings -> Guests), without touching this
  * container's environment: POST /owner/guest-key with an admin Music Assistant token in the
@@ -212,6 +213,10 @@ function parseMusicAssistant(url) {
 const KEY_FILE = process.env.GUEST_KEY_FILE ?? "/data/guest-key";
 /** Which optional powers are switched off for guests; empty means all of them are allowed. */
 const LIMITS_FILE = process.env.GUEST_LIMITS_FILE ?? "/data/guest-limits.json";
+/** One file per account: the layout that account last used, so a new phone arrives furnished. */
+const SETTINGS_DIR = process.env.SETTINGS_DIR ?? "/data/settings";
+/** A layout is a few hundred bytes; anything vast is a mistake, not a preference. */
+const MAX_SETTINGS_BYTES = 100_000;
 
 function readLimits() {
   try {
@@ -335,8 +340,8 @@ export function createProxyServer({ maUrl, maToken, guestKey }) {
     });
   }
 
-  /** Asks Music Assistant whether a token belongs to an admin, by using it to sign in. */
-  async function tokenIsAdmin(token) {
+  /** Asks Music Assistant who a token belongs to, by using it to sign in. */
+  async function tokenIdentity(token) {
     const waiting = new Map();
     let counter = 0;
     let connection = null;
@@ -368,11 +373,15 @@ export function createProxyServer({ maUrl, maToken, guestKey }) {
         }
       }, () => {});
       const auth = await call("auth", { token });
-      if (auth.error_code || auth.error) return false;
+      if (auth.error_code || auth.error) return null;
       const me = await call("auth/me", {});
-      return String(me?.result?.role ?? "").toLowerCase() === "admin";
+      const result = me?.result ?? {};
+      return {
+        userId: String(result.user_id ?? ""),
+        role: String(result.role ?? "").toLowerCase(),
+      };
     } catch {
-      return false;
+      return null;
     } finally {
       try {
         connection?.close();
@@ -414,7 +423,7 @@ export function createProxyServer({ maUrl, maToken, guestKey }) {
         reply(401, { error: "An admin Music Assistant token is required" });
         return;
       }
-      if (!(await tokenIsAdmin(token))) {
+      if ((await tokenIdentity(token))?.role !== "admin") {
         reply(403, { error: "Only an admin Music Assistant login can replace the guest key" });
         return;
       }
@@ -459,7 +468,7 @@ export function createProxyServer({ maUrl, maToken, guestKey }) {
         reply(401, { error: "An admin Music Assistant token is required" });
         return;
       }
-      if (!(await tokenIsAdmin(token))) {
+      if ((await tokenIdentity(token))?.role !== "admin") {
         reply(403, { error: "Only an admin Music Assistant login can change guest limits" });
         return;
       }
@@ -469,13 +478,89 @@ export function createProxyServer({ maUrl, maToken, guestKey }) {
     });
   };
 
+  /** One account's layout, so a phone that has never seen this server can still arrive furnished. */
+  const handleSettings = async (request, response) => {
+    const reply = (status, body) => {
+      const head = {
+        "content-type": "application/json",
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+      };
+      if (status === 204) {
+        response.writeHead(204, head).end();
+        return;
+      }
+      response.writeHead(status, head).end(JSON.stringify(body));
+    };
+
+    const token = String(request.headers.authorization ?? "")
+      .replace(/^Bearer\s+/i, "")
+      .trim();
+    if (!token) {
+      reply(401, { error: "Sign in to use synced settings" });
+      return;
+    }
+    const identity = await tokenIdentity(token);
+    if (!identity?.userId) {
+      reply(403, { error: "Music Assistant did not recognise that login" });
+      return;
+    }
+    // Hashed, so a user name can never turn into a path.
+    const file = path.join(
+      SETTINGS_DIR,
+      `${createHash("sha1").update(identity.userId).digest("hex")}.json`,
+    );
+
+    if (request.method === "GET") {
+      try {
+        const stored = JSON.parse(fs.readFileSync(file, "utf8"));
+        reply(200, { bundle: stored.bundle, updatedAt: stored.updatedAt });
+      } catch {
+        reply(204, null);
+      }
+      return;
+    }
+
+    const chunks = [];
+    let size = 0;
+    request.on("data", (chunk) => {
+      size += chunk.length;
+      if (size <= MAX_SETTINGS_BYTES) chunks.push(chunk);
+    });
+    request.on("end", () => {
+      if (size > MAX_SETTINGS_BYTES) {
+        reply(413, { error: "That is far too much settings for one account" });
+        return;
+      }
+      let body = {};
+      try {
+        body = JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
+      } catch {
+        body = {};
+      }
+      const bundle = typeof body?.bundle === "string" ? body.bundle : "";
+      const updatedAt = Number(body?.updatedAt);
+      if (!bundle || !Number.isFinite(updatedAt)) {
+        reply(400, { error: "Nothing to save" });
+        return;
+      }
+      try {
+        fs.mkdirSync(SETTINGS_DIR, { recursive: true });
+        fs.writeFileSync(file, JSON.stringify({ bundle, updatedAt }), { mode: 0o600 });
+        reply(200, { ok: true });
+      } catch {
+        reply(500, { error: "Could not save those settings" });
+      }
+    });
+  };
+
   const server = http.createServer((request, response) => {
     if (request.method === "OPTIONS") {
       response
         .writeHead(204, {
           "access-control-allow-origin": "*",
           "access-control-allow-headers": "authorization, content-type",
-          "access-control-allow-methods": "POST, GET, OPTIONS",
+          "access-control-allow-methods": "POST, PUT, GET, OPTIONS",
         })
         .end();
       return;
@@ -497,6 +582,11 @@ export function createProxyServer({ maUrl, maToken, guestKey }) {
     }
     if (request.url === "/owner/guest-limits" && request.method === "POST") {
       changeLimits(request, response);
+      return;
+    }
+    // Per-account layout storage: readable only with that account's own Music Assistant token.
+    if (request.url === "/settings" && (request.method === "GET" || request.method === "PUT")) {
+      void handleSettings(request, response);
       return;
     }
     if (request.url === "/health") {

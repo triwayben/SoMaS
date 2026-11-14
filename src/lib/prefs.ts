@@ -20,6 +20,8 @@ const INSTANCE_KEY = "somas.instance";
 const SCOPE_MARK = "@";
 
 export const PREFS_EVENT = "somas:prefs";
+/** Fired on every write, so the account's copy on the proxy can be kept up to date. */
+export const PREFS_WRITTEN = "somas:prefs-written";
 
 type Values = Record<string, string>;
 
@@ -144,6 +146,7 @@ function save(values: Values) {
   } catch {
     // Storage disabled or full: preferences simply do not persist this session.
   }
+  window.dispatchEvent(new Event(PREFS_WRITTEN));
 }
 
 /** Reads a raw string, moving it out of the older per-key storage on first use. */

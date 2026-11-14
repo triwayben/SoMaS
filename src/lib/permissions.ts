@@ -14,13 +14,15 @@
 export interface Permissions {
   /** Whoever the server says is signed in; empty when the server does not say. */
   username: string;
+  /** A stable id for that account, used to key settings kept for it on the proxy. */
+  userId: string;
   /** `admin`, `user`, `guest`, `service`, or a custom role id. */
   role: string;
   /** Favourites and anything else that changes the library. */
   libraryWrite: boolean;
 }
 
-export const UNRESTRICTED: Permissions = { username: "", role: "", libraryWrite: true };
+export const UNRESTRICTED: Permissions = { username: "", userId: "", role: "", libraryWrite: true };
 
 const LIBRARY_SCOPES = ["library.write", "library.manage"];
 
@@ -32,18 +34,19 @@ function scopesFor(scopes: unknown, role: string): string[] | null {
 }
 
 export function permissionsFrom(user: unknown, roleScopes: unknown): Permissions {
-  const record = (user ?? {}) as { username?: unknown; role?: unknown };
+  const record = (user ?? {}) as { username?: unknown; role?: unknown; user_id?: unknown };
   const role = typeof record.role === "string" ? record.role.toLowerCase() : "";
   const username = typeof record.username === "string" ? record.username : "";
-  if (!role) return { ...UNRESTRICTED, username };
+  const userId = typeof record.user_id === "string" ? record.user_id : "";
+  if (!role) return { ...UNRESTRICTED, username, userId };
 
   const scopes = scopesFor(roleScopes, role);
   if (scopes?.length) {
     const everything = scopes.includes("all") || scopes.includes("*");
     const libraryWrite = everything || LIBRARY_SCOPES.some((scope) => scopes.includes(scope));
-    return { username, role, libraryWrite };
+    return { username, userId, role, libraryWrite };
   }
 
   // No scope list came back: guests are the one role whose limits are fixed and documented.
-  return { username, role, libraryWrite: role !== "guest" };
+  return { username, userId, role, libraryWrite: role !== "guest" };
 }
