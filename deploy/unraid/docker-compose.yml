@@ -1,18 +1,14 @@
 # Unraid Docker Compose Manager starting point for SoMaS.
 #
 # Copy this into a new stack in Unraid's Compose Manager, then replace <nas-ip> with the server's
-# address (e.g. 192.168.1.20) — Unraid fetches the icon from the NAS itself, so a placeholder or a
-# stale address leaves the tile blank. These labels are what give the container its icon and its clickable
-# WebUI button on the Unraid Docker and Dashboard pages: without them the tile is a question mark
-# with no link, even though the app itself works.
+# address (e.g. 192.168.1.20). These labels are what give the container its clickable WebUI button
+# on the Unraid Docker and Dashboard pages.
 #
-# The image carries managed=dockerman and the webui link, because a plain `docker run` has no way to
-# add labels. It deliberately carries no icon label: Unraid does not expand [IP]/[PORT:n] when
-# fetching an icon, and the image cannot know the address of the machine serving it. A stack spells
-# the icon and webui out itself, and sets managed=composeman so Compose Manager owns the container.
-#
-# The icon is icon-plate-128.png: the mark on a light plate, which stays readable on Unraid's dark
-# dashboard. icon-transparent-128.png is for surfaces with a light background.
+# The icon needs no label at all: the image carries net.unraid.docker.icon pointing at a public
+# https copy of the mark, because Unraid downloads the picture itself and does not expand
+# [IP]/[PORT:n] in an icon it fetches. The image carries managed=dockerman and the webui link too,
+# because a plain `docker run` has no way to add labels; a stack overrides `managed` to
+# composeman so Compose Manager owns the container.
 services:
   somas:
     image: ghcr.io/triwayben/somas:latest
@@ -23,4 +19,5 @@ services:
     labels:
       net.unraid.docker.managed: composeman
       net.unraid.docker.webui: "http://<nas-ip>:8080/"
+      # Optional: same mark, but served from your own NAS instead of the published copy.
       net.unraid.docker.icon: "http://<nas-ip>:8080/icons/icon-plate-128.png"
