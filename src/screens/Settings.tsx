@@ -5,10 +5,11 @@ import { Section } from "../components/Media";
 import { Sheet } from "../components/Sheet";
 import { TopBar } from "../components/TopBar";
 import { useNav } from "../nav";
-import { useApp } from "../store";
+import { STORAGE, useApp } from "../store";
 import { copyText } from "../lib/clipboard";
 import { settingsWereMigrated } from "../lib/migrationNotice";
 import { exportAllPrefs, importPrefs, readPref, writePref } from "../lib/prefs";
+import { makeGuestKey, replaceGuestKey } from "../lib/guestProxy";
 import { buildGuestLink, buildSettingsLink, lastGuestHere } from "../lib/shareLinks";
 import { saveVolumeStep, useVolumeStep } from "../lib/volumeStep";
 import { THEME_FAMILIES, themesIn } from "../lib/themes";
@@ -35,6 +36,7 @@ export function SettingsScreen() {
   const [guestServer, setGuestServer] = useState(() => readPref("guestServer") ?? "");
   const [guestKey, setGuestKey] = useState(() => readPref("guestKey") ?? "");
   const [guestCode, setGuestCode] = useState<string | null>(null);
+  const [replacingKey, setReplacingKey] = useState(false);
   const lastGuest = useRef(lastGuestHere());
 
   const musicProviders = app.providers.filter((provider) => provider.type === "music");
@@ -64,6 +66,30 @@ export function SettingsScreen() {
   const copySettings = async () => {
     const copied = await copyText(exported);
     app.notify(copied ? "Settings copied" : "Select the text and copy it by hand");
+  };
+
+  /** Asks the proxy for a new key and shows the code that goes with it. */
+  const replaceKey = async () => {
+    const token = localStorage.getItem(STORAGE.token) ?? "";
+    if (!token) {
+      app.notify("Sign in again to change the guest key");
+      return;
+    }
+    setReplacingKey(true);
+    const next = makeGuestKey();
+    const result = await replaceGuestKey(guestServer, token, next);
+    setReplacingKey(false);
+    if (!result.ok) {
+      app.notify(result.error || "Could not replace the guest key");
+      return;
+    }
+    setGuestSecret(next);
+    setGuestCode(buildGuestLink(guestServer, next));
+    app.notify(
+      result.persisted
+        ? "New guest key: old codes and their sessions no longer work"
+        : "New guest key until the proxy restarts — it has no writable key file",
+    );
   };
 
   const copyGuestLink = async () => {
@@ -216,10 +242,11 @@ export function SettingsScreen() {
             autoCorrect="off"
             spellCheck={false}
           />
-          <span className="field__hint">
-            Not a Music Assistant password: only the proxy knows it. Change it by restarting the
-            proxy with a different key, which also invalidates every code already shared.
-          </span>
+                      <span className="field__hint">
+              Not a Music Assistant password: only the proxy knows it. Replace key asks the proxy
+              for a fresh one, which retires every code already shared and cuts the sessions it
+              opened.
+            </span>
         </label>
         {lastGuest.current && !guestServer.trim() ? (
           <p className="panel__hint">
@@ -243,6 +270,14 @@ export function SettingsScreen() {
           >
             <Icon name="external" size={18} />
             Show guest code
+          </button>
+          <button
+            className="btn btn--ghost btn--danger"
+            disabled={!guestServer.trim() || replacingKey}
+            onClick={() => void replaceKey()}
+          >
+            <Icon name="refresh" size={18} />
+            {replacingKey ? "Replacing…" : "Replace key"}
           </button>
         </div>
       </Section>

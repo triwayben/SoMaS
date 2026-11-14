@@ -155,6 +155,7 @@ docker run -d \
   --name somas-proxy \
   --restart unless-stopped \
   -p 8090:8090 \
+  -v somas-guest:/data \
   -e MA_URL=http://192.168.1.20:8095 \
   -e MA_TOKEN=paste-a-long-lived-token \
   -e GUEST_KEY=choose-a-guest-password \
@@ -171,6 +172,9 @@ services:
     restart: unless-stopped
     ports:
       - "8090:8090"
+    volumes:
+      # Keeps a key replaced from SoMaS across restarts.
+      - somas-guest:/data
     environment:
       MA_URL: "http://192.168.1.20:8095"
       MA_TOKEN: "paste-a-long-lived-token"
@@ -194,8 +198,20 @@ address and port on the Connect screen, and put the **guest key** in the token f
 Music Assistant address, and not the Music Assistant token.
 
 The code is a link with the key inside it, so treat it like a house key: anyone who scans it can
-control the rooms until you restart the proxy with a different `GUEST_KEY`, which invalidates every
-code already shared.
+control the rooms until that key is replaced.
+
+### Changing the key later
+
+Settings → **Guests** → **Replace key** makes a new key, tells the proxy to use it, and shows the
+code that goes with it. Everyone holding an old code is out: the old key stops working, and any
+guest session it opened is closed straight away rather than running to its natural end.
+
+No shell needed for this. The app asks the proxy with your own Music Assistant login, and the proxy
+checks with Music Assistant that the token really belongs to an admin before it changes anything —
+a guest, or a token that has been revoked, gets a refusal. The proxy keeps the new key in
+`/data/guest-key` inside its container, which is why the setup above mounts a volume there; without
+one the change lasts until the proxy restarts, and the confirmation says so when that happens.
+`GUEST_KEY` is only the starting key for a proxy that has never been given one from SoMaS.
 
 What the proxy forwards, and what it does not:
 

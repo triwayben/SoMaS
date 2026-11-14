@@ -13,13 +13,21 @@
  * Configuration:
  *   MA_URL     Music Assistant base URL, e.g. http://192.168.1.20:8095
  *   MA_TOKEN   a long-lived token for Music Assistant — the real credential, never sent to guests
- *   GUEST_KEY  the password a guest types into SoMaS's token field
+ *   GUEST_KEY  the starting guest key, used until one is set from SoMaS
  *   PORT       port to listen on (default 8090)
+ *   GUEST_KEY_FILE  where a replaced key is kept (default /data/guest-key)
+ *
+ * The key can be replaced at runtime from SoMaS (Settings -> Guests), without touching this
+ * container's environment: POST /owner/guest-key with an admin Music Assistant token in the
+ * Authorization header. Existing guest sessions are dropped, because a rotation is meant to end
+ * access for everyone holding the old code.
  *
  * No dependencies: the websocket framing is implemented here, so the image is just Node.
  */
+import fs from "node:fs";
 import http from "node:http";
 import net from "node:net";
+import path from "node:path";
 import { createHash, randomBytes } from "node:crypto";
 import { pathToFileURL } from "node:url";
 
@@ -190,11 +198,37 @@ function parseMusicAssistant(url) {
   };
 }
 
+/** Where a key replaced from SoMaS is kept, so a restart does not bring the old one back. */
+const KEY_FILE = process.env.GUEST_KEY_FILE ?? "/data/guest-key";
+
+function readSavedKey() {
+  try {
+    const saved = fs.readFileSync(KEY_FILE, "utf8").trim();
+    return saved || null;
+  } catch {
+    return null;
+  }
+}
+
+function writeSavedKey(key) {
+  try {
+    fs.mkdirSync(path.dirname(KEY_FILE), { recursive: true });
+    fs.writeFileSync(KEY_FILE, key, { mode: 0o600 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function createProxyServer({ maUrl, maToken, guestKey }) {
   const target = parseMusicAssistant(maUrl);
   if (!maToken) throw new Error("MA_TOKEN is required");
   if (!guestKey) throw new Error("GUEST_KEY is required");
   const base = maUrl.replace(/\/+$/, "");
+  // A key replaced earlier outlives a restart; the environment is only the starting point.
+  let currentGuestKey = readSavedKey() ?? guestKey;
+  /** Live guest connections, so a rotation can end the access it just revoked. */
+  const guestSessions = new Set();
 
   /** Opens one Music Assistant websocket, authenticated with the real token by the caller. */
   function connectUpstream(onMessage, onClosed) {
@@ -263,7 +297,112 @@ export function createProxyServer({ maUrl, maToken, guestKey }) {
     });
   }
 
+  /** Asks Music Assistant whether a token belongs to an admin, by using it to sign in. */
+  async function tokenIsAdmin(token) {
+    const waiting = new Map();
+    let counter = 0;
+    let connection = null;
+    const call = (command, args) =>
+      new Promise((resolve) => {
+        const id = `owner-${(counter += 1)}`;
+        const timer = setTimeout(() => {
+          waiting.delete(id);
+          resolve({ error: "Music Assistant did not answer in time" });
+        }, AUTH_TIMEOUT_MS);
+        waiting.set(id, (message) => {
+          clearTimeout(timer);
+          resolve(message);
+        });
+        connection.send(JSON.stringify({ message_id: id, command, args }));
+      });
+    try {
+      connection = await connectUpstream((text) => {
+        let message = null;
+        try {
+          message = JSON.parse(text);
+        } catch {
+          return;
+        }
+        const entry = waiting.get(message.message_id);
+        if (entry) {
+          waiting.delete(message.message_id);
+          entry(message);
+        }
+      }, () => {});
+      const auth = await call("auth", { token });
+      if (auth.error_code || auth.error) return false;
+      const me = await call("auth/me", {});
+      return String(me?.result?.role ?? "").toLowerCase() === "admin";
+    } catch {
+      return false;
+    } finally {
+      try {
+        connection?.close();
+      } catch {
+        // Already gone.
+      }
+    }
+  }
+
+  /** Replaces the guest key: the old codes stop working, and so do the sessions using them. */
+  const rotateKey = (request, response) => {
+    const chunks = [];
+    request.on("data", (chunk) => chunks.push(chunk));
+    request.on("end", async () => {
+      const reply = (status, body) => {
+        response
+          .writeHead(status, {
+            "content-type": "application/json",
+            "cache-control": "no-store",
+            "access-control-allow-origin": "*",
+          })
+          .end(JSON.stringify(body));
+      };
+      let body = {};
+      try {
+        body = JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
+      } catch {
+        body = {};
+      }
+      const nextKey = typeof body?.key === "string" ? body.key.trim() : "";
+      if (nextKey.length < 8) {
+        reply(400, { error: "The new guest key needs at least 8 characters" });
+        return;
+      }
+      const token = String(request.headers.authorization ?? "")
+        .replace(/^Bearer\s+/i, "")
+        .trim();
+      if (!token) {
+        reply(401, { error: "An admin Music Assistant token is required" });
+        return;
+      }
+      if (!(await tokenIsAdmin(token))) {
+        reply(403, { error: "Only an admin Music Assistant login can replace the guest key" });
+        return;
+      }
+      currentGuestKey = nextKey;
+      const persisted = writeSavedKey(nextKey);
+      // Cut the sessions the old key opened, so a rotation is not merely cosmetic.
+      for (const close of [...guestSessions]) close();
+      reply(200, { ok: true, persisted });
+    });
+  };
+
   const server = http.createServer((request, response) => {
+    if (request.method === "OPTIONS") {
+      response
+        .writeHead(204, {
+          "access-control-allow-origin": "*",
+          "access-control-allow-headers": "authorization, content-type",
+          "access-control-allow-methods": "POST, GET, OPTIONS",
+        })
+        .end();
+      return;
+    }
+    if (request.url === "/owner/guest-key" && request.method === "POST") {
+      rotateKey(request, response);
+      return;
+    }
     if (request.url === "/health") {
       response.writeHead(200, { "content-type": "text/plain" }).end("ok\n");
       return;
@@ -324,6 +463,7 @@ export function createProxyServer({ maUrl, maToken, guestKey }) {
     const closeGuest = () => {
       if (closed) return;
       closed = true;
+      guestSessions.delete(closeGuest);
       if (pendingAuth) {
         clearTimeout(pendingAuth.timer);
         pendingAuth.resolve({ error: "Connection closed" });
@@ -339,6 +479,8 @@ export function createProxyServer({ maUrl, maToken, guestKey }) {
     };
     const refuse = (messageId, details, code = 403) =>
       sendToGuest(JSON.stringify({ message_id: messageId, error_code: code, details }));
+    // Registered once the connection can be closed, so replacing the key can end this session.
+    guestSessions.add(closeGuest);
 
     /** Results and Music Assistant's push events both pass straight through: they are reads. */
     const upstreamMessage = (text) => {
@@ -377,7 +519,7 @@ export function createProxyServer({ maUrl, maToken, guestKey }) {
     };
 
     const handleGuestAuth = async (messageId, token) => {
-      if (String(token ?? "") !== guestKey) {
+      if (String(token ?? "") !== currentGuestKey) {
         refuse(messageId, "That guest key is not right", 401);
         closeGuest();
         return;
