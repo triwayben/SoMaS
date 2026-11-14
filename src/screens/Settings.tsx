@@ -6,6 +6,7 @@ import { TopBar } from "../components/TopBar";
 import { useNav } from "../nav";
 import { useApp } from "../store";
 import { copyText } from "../lib/clipboard";
+import { settingsWereMigrated } from "../lib/migrationNotice";
 import { exportPrefs, importPrefs } from "../lib/prefs";
 import { saveVolumeStep, useVolumeStep } from "../lib/volumeStep";
 import { THEME_FAMILIES, themesIn } from "../lib/themes";
@@ -19,6 +20,8 @@ export function SettingsScreen() {
   const theme = useTheme();
   const volumeStep = useVolumeStep();
   const [syncing, setSyncing] = useState(false);
+  // The toast for this is one-time; the panel keeps saying so, for anyone who missed it.
+  const [migrated] = useState(() => settingsWereMigrated());
   // Copying settings to another address: one sheet holds the text either way, so restoring never
   // depends on reading the clipboard, which a phone can block.
   const [move, setMove] = useState<"copy" | "paste" | null>(null);
@@ -118,6 +121,17 @@ export function SettingsScreen() {
               </span>
             </span>
           </div>
+          {migrated ? (
+            <div className="panel__row">
+              <span className="panel__label panel__label--stack">
+                Your saved settings moved across to SoMaS
+                <span className="panel__sublabel">
+                  Theme, order and pins were carried over from the app's earlier name, so nothing you
+                  had chosen was lost. This note stays here after the one-time message goes.
+                </span>
+              </span>
+            </div>
+          ) : null}
         </div>
         <div className="button-row">
           <button className="btn btn--ghost" onClick={openCopy}>

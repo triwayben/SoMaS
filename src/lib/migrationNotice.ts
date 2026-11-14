@@ -16,6 +16,15 @@ export function noteSettingsMigrated() {
   }
 }
 
+/** Whether settings were carried over at some point, for the panel that outlives the toast. */
+export function settingsWereMigrated(): boolean {
+  try {
+    return localStorage.getItem(PENDING_KEY) === "1" || localStorage.getItem(SHOWN_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 /** The message to show once per browser, or null when no upgrade has moved anything. */
 export function takeMigrationNotice(): string | null {
   try {
