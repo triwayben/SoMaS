@@ -107,8 +107,11 @@ function isEmbedded(): boolean {
  */
 export async function startHaLogin(server: string): Promise<void> {
   const base = normalizeBaseUrl(server);
+  // A fresh name every time: reusing a sign-in window left open from an earlier try would keep
+  // that window's old opener, which is gone once the dashboard reloaded, and the token would
+  // have nowhere to go.
   const popup = isEmbedded()
-    ? window.open("about:blank", "somas-ha-login", "popup,width=480,height=720")
+    ? window.open("about:blank", `somas-ha-login-${Date.now()}`, "popup,width=480,height=720")
     : null;
   if (isEmbedded() && !popup) {
     throw new MasError("The sign-in window was blocked. Allow pop-ups for this page and try again.");
