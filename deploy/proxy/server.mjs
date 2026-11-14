@@ -287,6 +287,9 @@ export function createProxyServer({ maUrl, maToken, guestKey }) {
         response.writeHead(upstreamResponse.statusCode ?? 502, {
           "content-type": String(upstreamResponse.headers["content-type"] ?? "application/octet-stream"),
           "cache-control": "no-store",
+          // The app is served from the SoMaS container on its own port, so the banner, version and
+          // artwork are cross-origin calls: without this the browser refuses to read them.
+          "access-control-allow-origin": "*",
         });
         upstreamResponse.pipe(response);
       },

@@ -23,6 +23,7 @@ import type {
 import { permissionsFrom, UNRESTRICTED, type Permissions } from "./lib/permissions";
 import { leaderOf, queueFor } from "./lib/players";
 import { accountHash as hashAccount, readPrefJson, scopedKey, setPrefScope, writePrefJson } from "./lib/prefs";
+import { clearLaunchHash, readLaunch, rememberGuest } from "./lib/shareLinks";
 
 const STORAGE = {
   server: "somas.server",
@@ -61,6 +62,8 @@ interface ConnectOptions {
   remember?: boolean;
   /** Already-hashed identity, so reconnecting lands on the same settings the session saved. */
   accountHash?: string;
+  /** Signed in by scanning a guest code: failures get a plainer message than a manual connect. */
+  guestLink?: boolean;
 }
 
 export interface AppActions {
@@ -337,6 +340,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       demo = false,
       remember = true,
       accountHash,
+      guestLink = false,
     }: ConnectOptions) => {
       teardown();
       // Keep one canonical absolute origin in state. Artwork and links are built from it, so a
@@ -411,10 +415,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
       } catch (err) {
         backend.close();
         backendRef.current = null;
+        if (guestLink) {
+          // Keep the address so the Connect screen opens with it filled in; the key stays blank.
+          localStorage.setItem(STORAGE.server, base);
+          localStorage.removeItem(STORAGE.token);
+        }
         setState((prev) => ({
           ...prev,
           phase: "error",
-          error: (err as Error).message || "Could not connect",
+          error: guestLink
+            ? "That guest code did not sign in. It may be out of date — ask for a new one, or type the guest key by hand."
+            : (err as Error).message || "Could not connect",
         }));
       }
     },
@@ -434,19 +445,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setState(initialState);
   }, [teardown]);
 
-  // Restore a previous session on first load.
+  // Restore a previous session on first load, or follow the code someone scanned.
   useEffect(() => {
-    const demo = localStorage.getItem(STORAGE.demo) === "1";
-    const server = localStorage.getItem(STORAGE.server) ?? "";
-    const token = localStorage.getItem(STORAGE.token) ?? "";
-    // Reuse the identity this session was saved under, so a password login lands on its settings
-    // even though the token it received is new.
-    const accountHash = localStorage.getItem(STORAGE.account) ?? undefined;
-    if (demo) {
-      void connect({ demo: true });
-    } else if (server) {
-      void connect({ baseUrl: server, token, accountHash });
-    }
+    let cancelled = false;
+    void (async () => {
+      // A guest code outranks whatever this browser remembered: it signs in to the proxy on the
+      // spot, so the Connect screen never appears. An #import= code is left to the shell, which
+      // asks before replacing what is saved here.
+      const launch = await readLaunch();
+      if (cancelled) return;
+      if (launch?.kind === "guest") {
+        rememberGuest(launch.server, launch.key);
+        clearLaunchHash();
+        await connect({ baseUrl: launch.server, token: launch.key, remember: true, guestLink: true });
+        return;
+      }
+      const demo = localStorage.getItem(STORAGE.demo) === "1";
+      const server = localStorage.getItem(STORAGE.server) ?? "";
+      const token = localStorage.getItem(STORAGE.token) ?? "";
+      // Reuse the identity this session was saved under, so a password login lands on its settings
+      // even though the token it received is new.
+      const accountHash = localStorage.getItem(STORAGE.account) ?? undefined;
+      if (demo) {
+        void connect({ demo: true });
+      } else if (server) {
+        void connect({ baseUrl: server, token, accountHash });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

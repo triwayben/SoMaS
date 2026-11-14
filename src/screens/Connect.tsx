@@ -36,6 +36,12 @@ export function ConnectScreen() {
     };
   }, []);
 
+  // A guest code that failed leaves its address behind, so the field only needs the key retyped.
+  useEffect(() => {
+    if (!app.baseUrl || serverTouched.current) return;
+    setServer((current) => (current.trim() ? current : app.baseUrl.replace(/^https?:\/\//, "")));
+  }, [app.baseUrl]);
+
   const connecting = app.phase === "connecting" || busy;
 
   const findServer = async () => {

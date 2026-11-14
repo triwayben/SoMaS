@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Icon } from "../components/Icon";
 import { QrCode } from "../components/QrCode";
 import { Section } from "../components/Media";
@@ -8,7 +8,8 @@ import { useNav } from "../nav";
 import { useApp } from "../store";
 import { copyText } from "../lib/clipboard";
 import { settingsWereMigrated } from "../lib/migrationNotice";
-import { exportAllPrefs, importPrefs } from "../lib/prefs";
+import { exportAllPrefs, importPrefs, readPref, writePref } from "../lib/prefs";
+import { buildGuestLink, buildSettingsLink, lastGuestHere } from "../lib/shareLinks";
 import { saveVolumeStep, useVolumeStep } from "../lib/volumeStep";
 import { THEME_FAMILIES, themesIn } from "../lib/themes";
 import { useTheme } from "../theme";
@@ -23,24 +24,52 @@ export function SettingsScreen() {
   const [syncing, setSyncing] = useState(false);
   // The toast for this is one-time; the panel keeps saying so, for anyone who missed it.
   const [migrated] = useState(() => settingsWereMigrated());
-  // Copying settings to another address: one sheet holds the text either way, so restoring never
-  // depends on reading the clipboard, which a phone can block.
-  const [move, setMove] = useState<"copy" | "paste" | null>(null);
+  // Moving the layout to another phone: one code, with the text kept behind a link for the rare
+  // case a camera cannot be used. Neither path depends on the clipboard, which a phone can block.
+  const [move, setMove] = useState<"share" | "paste" | null>(null);
+  const [shareLink, setShareLink] = useState("");
+  const [showText, setShowText] = useState(false);
   const [exported, setExported] = useState("");
   const [draft, setDraft] = useState("");
+  // Guest code: the proxy's address and key are typed once here, then carried by the code itself.
+  const [guestServer, setGuestServer] = useState(() => readPref("guestServer") ?? "");
+  const [guestKey, setGuestKey] = useState(() => readPref("guestKey") ?? "");
+  const [guestCode, setGuestCode] = useState<string | null>(null);
+  const lastGuest = useRef(lastGuestHere());
 
   const musicProviders = app.providers.filter((provider) => provider.type === "music");
   const playerProviders = app.providers.filter((provider) => provider.type === "player");
   const roomCount = Object.keys(app.players).length;
 
-  const openCopy = () => {
-    setExported(exportAllPrefs());
-    setMove("copy");
+  const openShare = async () => {
+    const bundle = exportAllPrefs();
+    setExported(bundle);
+    setShareLink("");
+    setShowText(false);
+    setMove("share");
+    setShareLink(await buildSettingsLink(bundle));
+  };
+
+  // Typing in a guest field saves it straight away: there is no Apply button to forget.
+  const setGuestAddress = (value: string) => {
+    setGuestServer(value);
+    writePref("guestServer", value);
+  };
+
+  const setGuestSecret = (value: string) => {
+    setGuestKey(value);
+    writePref("guestKey", value);
   };
 
   const copySettings = async () => {
     const copied = await copyText(exported);
     app.notify(copied ? "Settings copied" : "Select the text and copy it by hand");
+  };
+
+  const copyGuestLink = async () => {
+    if (!guestCode) return;
+    const copied = await copyText(guestCode);
+    app.notify(copied ? "Guest link copied" : "Select the address and copy it by hand");
   };
 
   const applySettings = () => {
@@ -117,8 +146,8 @@ export function SettingsScreen() {
             <span className="panel__label panel__label--stack">
               Order, theme, pins and history
               <span className="panel__sublabel">
-                Saved on this device per server and per account. Copy them here to take every
-                server's layout to another address or the installed app in one go.
+                Saved on this device per server and per account. Show the code, scan it with the
+                new phone, and every server's layout comes across in one go.
               </span>
             </span>
           </div>
@@ -135,11 +164,85 @@ export function SettingsScreen() {
           ) : null}
         </div>
         <div className="button-row">
-          <button className="btn btn--ghost" onClick={openCopy}>
-            Copy settings
+          <button className="btn btn--ghost" onClick={() => void openShare()}>
+            Move settings to another phone
           </button>
-          <button className="btn btn--ghost" onClick={() => { setDraft(""); setMove("paste"); }}>
+          <button
+            className="btn btn--ghost"
+            onClick={() => {
+              setDraft("");
+              setMove("paste");
+            }}
+          >
             Paste settings
+          </button>
+        </div>
+      </Section>
+
+      <Section title="Guests">
+        <div className="panel">
+          <div className="panel__row">
+            <span className="panel__label panel__label--stack">
+              A code instead of a password
+              <span className="panel__sublabel">
+                Fill in the proxy's address and its guest key once. The code carries both, so a
+                visitor scans it and lands on the room controls with nothing to type.
+              </span>
+            </span>
+          </div>
+        </div>
+        <label className="field settings-field">
+          <span>Guest proxy address</span>
+          <input
+            value={guestServer}
+            onChange={(event) => setGuestAddress(event.target.value)}
+            placeholder="192.168.1.20:8090"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            inputMode="url"
+          />
+          <span className="field__hint">
+            The address the proxy runs on, as a phone on this network would reach it.
+          </span>
+        </label>
+        <label className="field settings-field">
+          <span>Guest key</span>
+          <input
+            value={guestKey}
+            onChange={(event) => setGuestSecret(event.target.value)}
+            placeholder="The GUEST_KEY the proxy runs with"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+          />
+          <span className="field__hint">
+            Not a Music Assistant password: only the proxy knows it. Change it by restarting the
+            proxy with a different key, which also invalidates every code already shared.
+          </span>
+        </label>
+        {lastGuest.current && !guestServer.trim() ? (
+          <p className="panel__hint">
+            This phone was opened with a guest code from {lastGuest.current.server}.{" "}
+            <button
+              className="chip"
+              onClick={() => {
+                setGuestAddress(lastGuest.current?.server ?? "");
+                setGuestSecret(lastGuest.current?.key ?? "");
+              }}
+            >
+              Use it
+            </button>
+          </p>
+        ) : null}
+        <div className="button-row">
+          <button
+            className="btn btn--ghost"
+            disabled={!guestServer.trim() || !guestKey.trim()}
+            onClick={() => setGuestCode(buildGuestLink(guestServer, guestKey))}
+          >
+            <Icon name="external" size={18} />
+            Show guest code
           </button>
         </div>
       </Section>
@@ -315,47 +418,94 @@ export function SettingsScreen() {
       <Sheet
         open={move !== null}
         onClose={() => setMove(null)}
-        title={move === "copy" ? "Copy settings" : "Paste settings"}
+        title={move === "paste" ? "Paste settings" : "Move settings to another phone"}
         subtitle={
-          move === "copy"
-            ? "Every server saved on this device"
-            : "From another address or the installed app"
+          move === "paste"
+            ? "From another address or the installed app"
+            : "Every server saved on this device"
         }
       >
         <div className="settings-move">
-          <textarea
-            className="settings-move__text"
-            value={move === "copy" ? exported : draft}
-            readOnly={move === "copy"}
-            spellCheck={false}
-            placeholder={move === "paste" ? "Paste the settings you copied" : undefined}
-            onChange={(event) => {
-              if (move === "paste") setDraft(event.target.value);
-            }}
-          />
-          <p className="sheet__hint settings-move__hint">
-            {move === "copy"
-              ? "Each server keeps its own entry, so paste this anywhere and every one lands back on its own settings."
-              : "Settings for every server in this text replace the ones saved here; a plain single-server copy replaces only the server you are connected to."}
-          </p>
-          {move === "copy" && exported ? (
+          {move === "paste" ? (
+            <>
+              <textarea
+                className="settings-move__text"
+                value={draft}
+                spellCheck={false}
+                placeholder="Paste the settings you copied"
+                onChange={(event) => setDraft(event.target.value)}
+              />
+              <p className="sheet__hint settings-move__hint">
+                Settings for every server in this text replace the ones saved here; a plain
+                single-server copy replaces only the server you are connected to.
+              </p>
+              <div className="button-row">
+                <button className="btn" onClick={applySettings} disabled={!draft.trim()}>
+                  Apply
+                </button>
+              </div>
+            </>
+          ) : showText ? (
+            <>
+              <textarea
+                className="settings-move__text"
+                value={exported}
+                readOnly
+                spellCheck={false}
+              />
+              <p className="sheet__hint settings-move__hint">
+                Copy this text into Paste settings on the other device instead of scanning.
+              </p>
+              <div className="button-row">
+                <button className="btn" onClick={() => void copySettings()}>
+                  Copy to clipboard
+                </button>
+                <button className="btn btn--ghost" onClick={() => setShowText(false)}>
+                  Show the code instead
+                </button>
+              </div>
+            </>
+          ) : shareLink ? (
             <QrCode
-              text={exported}
-              caption="Scan this with the camera on the other phone, then paste what it copies."
+              text={shareLink}
+              caption="Scan this with the new phone's camera. SoMaS opens there and offers to carry your settings over."
             />
+          ) : (
+            <p className="sheet__hint settings-move__hint">Making the code…</p>
+          )}
+          {move !== "paste" && !showText && shareLink ? (
+            <div className="button-row">
+              <button className="btn btn--ghost" onClick={() => setShowText(true)}>
+                Show the text instead
+              </button>
+            </div>
           ) : null}
-          <div className="button-row">
-            {move === "copy" ? (
-              <button className="btn" onClick={() => void copySettings()}>
-                Copy to clipboard
-              </button>
-            ) : (
-              <button className="btn" onClick={applySettings} disabled={!draft.trim()}>
-                Apply
-              </button>
-            )}
-          </div>
         </div>
+      </Sheet>
+
+      <Sheet
+        open={guestCode !== null}
+        onClose={() => setGuestCode(null)}
+        title="Guest code"
+        subtitle="Scan it, and you are controlling the music"
+      >
+        {guestCode ? (
+          <div className="settings-move">
+            <QrCode
+              text={guestCode}
+              caption="Point the visitor's camera at this. SoMaS opens on their phone already signed in as a guest."
+            />
+            <p className="sheet__hint settings-move__hint">
+              Anyone who scans this can control your rooms until you change GUEST_KEY and restart
+              the proxy. It is a share, not a secret.
+            </p>
+            <div className="button-row">
+              <button className="btn" onClick={() => void copyGuestLink()}>
+                Copy link
+              </button>
+            </div>
+          </div>
+        ) : null}
       </Sheet>
     </>
   );

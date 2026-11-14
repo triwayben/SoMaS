@@ -162,10 +162,12 @@ export function ProfileScreen() {
           </div>
         </div>
         <div className="button-row">
-          <button className="btn btn--ghost" onClick={() => nav.push({ name: "settings" })}>
-            <Icon name="gear" size={18} />
-            App settings
-          </button>
+          {app.permissions.role === "guest" ? null : (
+            <button className="btn btn--ghost" onClick={() => nav.push({ name: "settings" })}>
+              <Icon name="gear" size={18} />
+              App settings
+            </button>
+          )}
           <button className="btn btn--ghost btn--danger" onClick={app.disconnect}>
             {demo ? "Leave demo" : "Disconnect"}
           </button>

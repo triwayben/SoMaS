@@ -250,9 +250,11 @@ export function HomeScreen() {
         right={
           <>
             {backendKind === "demo" ? <span className="pill">Demo</span> : null}
-            <button className="icon-btn" onClick={() => nav.push({ name: "settings" })} aria-label="Settings">
-              <Icon name="sliders" size={22} />
-            </button>
+            {app.permissions.role === "guest" ? null : (
+              <button className="icon-btn" onClick={() => nav.push({ name: "settings" })} aria-label="Settings">
+                <Icon name="sliders" size={22} />
+              </button>
+            )}
           </>
         }
       />

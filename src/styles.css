@@ -1779,6 +1779,10 @@ img {
   padding: 12px 0 0;
 }
 
+.settings-field {
+  margin: 12px 0;
+}
+
 .settings-move .button-row {
   margin-top: 14px;
 }

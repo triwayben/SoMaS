@@ -19,6 +19,8 @@ import { SettingsScreen } from "./screens/Settings";
 import { SystemScreen } from "./screens/System";
 import { AppProvider, useApp } from "./store";
 import { takeMigrationNotice } from "./lib/migrationNotice";
+import { importPrefs } from "./lib/prefs";
+import { clearLaunchHash, readLaunch, type ImportLaunch } from "./lib/shareLinks";
 import { useViewportHeight } from "./lib/viewportHeight";
 import { ThemeProvider } from "./theme";
 
@@ -29,8 +31,13 @@ function Shell() {
   const [overlay, setOverlay] = useState<"none" | "now" | "queue">("none");
   const [settingsFor, setSettingsFor] = useState<string | null>(null);
   const [groupFor, setGroupFor] = useState<string | null>(null);
+  // A scanned settings code waits here until it is accepted, so carrying a layout over never
+  // replaces this phone's own without being asked.
+  const [incoming, setIncoming] = useState<ImportLaunch | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   useViewportHeight();
+
+  const guest = app.permissions.role === "guest";
 
   const route: Route = stack.length ? stack[stack.length - 1] : ({ name: tab } as Route);
   const isRoot = stack.length === 0;
@@ -76,8 +83,66 @@ function Shell() {
     if (message) app.notify(message);
   }, [app.phase, app.notify]);
 
+  // A settings code from another phone asks first, then replaces what it carries.
+  useEffect(() => {
+    let cancelled = false;
+    void readLaunch().then((launch) => {
+      if (cancelled || launch?.kind !== "import") return;
+      clearLaunchHash();
+      setIncoming(launch);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const carrySettings = () => {
+    if (!incoming) return;
+    const restored = importPrefs(incoming.bundle);
+    setIncoming(null);
+    if (!restored) {
+      app.notify("That code did not carry any settings");
+      return;
+    }
+    app.notify(`Carried over ${restored} settings`);
+    // Theme, order and pins are read as the app renders, so reload to show them at once.
+    window.setTimeout(() => window.location.reload(), 800);
+  };
+
+  // Rendered either way: a settings code can land on a phone that has never connected, and asking
+  // about it beats a Connect screen with no explanation.
+  const incomingSheet = (
+    <Sheet
+      open={incoming !== null}
+      onClose={() => setIncoming(null)}
+      title="Carry settings over?"
+      subtitle="From another device"
+    >
+      <div className="settings-move">
+        <p className="sheet__hint settings-move__hint">
+          {incoming
+            ? `${incoming.servers} ${incoming.servers === 1 ? "server" : "servers"} and ${incoming.preferences} ${incoming.preferences === 1 ? "setting" : "settings"} will replace what is saved on this phone for those servers.`
+            : ""}
+        </p>
+        <div className="button-row">
+          <button className="btn btn--primary" onClick={carrySettings}>
+            Carry them over
+          </button>
+          <button className="btn" onClick={() => setIncoming(null)}>
+            Not now
+          </button>
+        </div>
+      </div>
+    </Sheet>
+  );
+
   if (app.phase !== "ready") {
-    return <ConnectScreen />;
+    return (
+      <>
+        <ConnectScreen />
+        {incomingSheet}
+      </>
+    );
   }
 
   const content = (() => {
@@ -97,7 +162,8 @@ function Shell() {
       case "profile":
         return <ProfileScreen />;
       case "settings":
-        return <SettingsScreen />;
+        // A guest has nothing useful to arrange here, and the screens behind it are the owner's.
+        return guest ? <HomeScreen /> : <SettingsScreen />;
       default:
         return <HomeScreen />;
     }
@@ -163,6 +229,8 @@ function Shell() {
         {groupFor ? (
           <GroupSheet playerId={groupFor} onClose={() => setGroupFor(null)} />
         ) : null}
+
+        {incomingSheet}
 
         {app.toast ? (
           <div className="toast" role="status">

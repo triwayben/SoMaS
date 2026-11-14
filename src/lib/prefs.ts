@@ -181,9 +181,23 @@ export function writePrefJson(name: string, value: unknown) {
   writePref(name, JSON.stringify(value));
 }
 
+/**
+ * Settings that are really credentials. They stay on the device that owns them: a copied layout is
+ * meant to be shown as a QR code, and a guest key has its own code with its own warning.
+ */
+const NOT_EXPORTED = new Set(["guestKey"]);
+
+function withoutSecrets(values: Values): Values {
+  const kept: Values = {};
+  for (const [name, value] of Object.entries(values)) {
+    if (!NOT_EXPORTED.has(name)) kept[name] = value;
+  }
+  return kept;
+}
+
 /** A portable copy of the layout for the server in use, for moving it to another app instance. */
 export function exportPrefs(): string {
-  return JSON.stringify({ version: VERSION, values: load() }, null, 2);
+  return JSON.stringify({ version: VERSION, values: withoutSecrets(load()) }, null, 2);
 }
 
 /**
@@ -198,7 +212,7 @@ export function exportAllPrefs(): string {
       const key = localStorage.key(index);
       if (!key?.startsWith(prefix)) continue;
       const instance = key.slice(prefix.length);
-      const values = parseBundle(localStorage.getItem(key));
+      const values = withoutSecrets(parseBundle(localStorage.getItem(key)));
       if (Object.keys(values).length) servers[instance] = values;
     }
   } catch {

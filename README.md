@@ -129,8 +129,13 @@ volumes, no environment variables and no network mode.
 ## Guests without giving away the token
 
 A guest phone should not be handed an admin token. `deploy/proxy` is a small service that sits in
-front of Music Assistant: the guest points SoMaS at the proxy and types a **guest key**, the proxy
+front of Music Assistant: the guest's phone talks to the proxy with a **guest key**, the proxy
 relays to Music Assistant with the real token, and the token never reaches the browser.
+
+In plain words: your Music Assistant token is the master key, and the proxy is a doorman holding
+it. A guest carries only a door key word. The doorman passes through what a guest needs — rooms,
+playback, volume, grouping, queues, browsing, artwork — and refuses the rest with a readable
+message. The code below carries the doorman's address and the key, so nobody types either.
 
 ### Setting it up
 
@@ -172,13 +177,25 @@ services:
       GUEST_KEY: "choose-a-guest-password"
 ```
 
-4. **Connect the guest phone.** Open SoMaS, and on the Connect screen enter the **proxy's** address
-   with its port (`192.168.1.20:8090`, or whatever port you published) and put the **guest key** in
-   the token field. Not the Music Assistant address, and not the Music Assistant token.
-5. **Check it worked.** Settings → About should read `Signed in as Guest · guest`, and the hearts
-   and *Scan library* should be gone — that means the proxy is in the middle and the app is showing
-   the guest view. Everything a guest needs still works: rooms, playback, volume, grouping, queues,
-   browsing, search and artwork.
+4. **Put the proxy's address into SoMaS once.** On your own phone open SoMaS → Settings →
+   **Guests** and fill in the proxy's address with its port (`192.168.1.20:8090`, or whatever you
+   published) and the guest key. They are remembered per server and per account, so this is a
+   one-time job.
+5. **Show the guest code.** Same section → **Show guest code**, and let the visitor scan it with
+   their camera. SoMaS opens on their phone already signed in as a guest — no address, no key, no
+   Connect screen — and lands on the room controls. It is a link, so it works pasted into a message
+   too.
+6. **Check it worked.** On the guest phone the room grid appears straight away, Settings is
+   hidden, and the hearts and *Scan library* are gone. Everything a guest needs still works: rooms,
+   playback, volume, grouping, queues, browsing, search and artwork.
+
+If you would rather not use a code, the older way still works: open SoMaS, enter the **proxy's**
+address and port on the Connect screen, and put the **guest key** in the token field — not the
+Music Assistant address, and not the Music Assistant token.
+
+The code is a link with the key inside it, so treat it like a house key: anyone who scans it can
+control the rooms until you restart the proxy with a different `GUEST_KEY`, which invalidates every
+code already shared.
 
 What the proxy forwards, and what it does not:
 
@@ -210,25 +227,46 @@ When something does not work, the messages say which piece is wrong:
 ## Unraid
 
 Unraid builds a container's Docker tile — the icon, and the **WebUI** button that opens the app —
-from template fields or from three `net.unraid.docker.*` labels. A container also has to be marked
-as *managed* before Unraid uses those labels, which is the piece that is easy to miss: without
-`net.unraid.docker.managed` the tile stays a question mark with no button, however the app itself
-runs.
+from template fields or from `net.unraid.docker.*` labels, and a container has to be marked as
+*managed* before it uses those labels at all. The image carries
+`net.unraid.docker.managed=dockerman` and the webui link, so a container started with a plain
+`docker run` gets its button on the Docker and Dashboard pages.
 
-The image carries all three, including `net.unraid.docker.managed=dockerman`, so a container
-started with a plain `docker run` already shows its mark and its button on the Docker and Dashboard
-pages. Nothing needs adding by hand.
+### The icon needs a real address
+
+The image deliberately carries **no** `net.unraid.docker.icon` label. Unraid expands `[IP]` and
+`[PORT:n]` in a template's *WebUI* field but not when it fetches an icon, so a baked
+`http://[IP]:[PORT:80]/…` label asks a host literally called `[IP]` for a picture, gets nothing,
+leaves the tile as a question mark, and caches that miss — which is why a force-update does not
+bring it back. The app does serve its own mark; the address just has to be a real one.
+
+SoMaS serves `http://<nas-ip>:<port>/icons/icon-transparent-128.png`, and your browser can reach
+that, so point Unraid at it:
+
+1. Docker tab → the container → **Edit** → **Icon URL**:
+   `http://192.168.1.20:8080/icons/icon-transparent-128.png`, with your own address and host port.
+2. **Apply**, so the container is recreated with that field.
+3. Delete the cached copies, or Unraid keeps showing the old (missing) picture:
+   `/var/lib/docker/unraid/images/<container>-icon.png` and
+   `/var/local/emhttp/plugins/dynamix.docker.manager/images/<container>-icon.png`.
+4. Reload the Docker tab.
+
+The tile is small, so that file is 128px — the size it draws — with no background so the tile shows
+through. `icon-transparent-512.png` is the same mark at full size, and `icon-128.png` is the
+dark-tile version for anywhere a transparent mark would disappear.
+
+If you would rather it work with no step at all, publish `public/icons/icon-transparent-128.png` at
+a fixed public https URL (a gist or a one-file site) and use that in the icon label: a baked label
+has to point somewhere reachable, and the address of your NAS is not knowable at build time.
 
 A Compose Manager stack should say `managed=composeman` in its own labels, so Compose owns the
-container rather than dockerman. The icon and webui lines are then optional — the image's are
-inherited — and a compose label that sets them has to spell the address out, because [IP]/[PORT:n]
-placeholders are a template feature:
+container rather than dockerman, and has to spell the icon out for the same reason:
 
 ```yaml
 labels:
   net.unraid.docker.managed: composeman
   net.unraid.docker.webui: "http://192.168.1.20:8080/"
-  net.unraid.docker.icon: "http://192.168.1.20:8080/icons/icon-128.png"
+  net.unraid.docker.icon: "http://192.168.1.20:8080/icons/icon-transparent-128.png"
 ```
 
 Unraid's Docker tile is small, so the labels point at `icon-transparent-128.png`: a 128px file, at
@@ -318,10 +356,11 @@ Live state is kept in sync from Music Assistant's push events (`player_updated`,
   per login, so pointing SoMaS at a second server, or signing in as someone else on the same one,
   gives that account its own layout and switching back restores the first one's. Accounts are told
   apart by a short hash, never the token itself. The demo system keeps its own sandbox settings.
-  **Copy settings** exports every server saved on the device in one text, an entry each, and shows
-  it as a QR code so a phone can scan it instead of having it typed; pasting that back puts each
-  server's layout on its own server. A single-server copy from an older build still pastes onto
-  whatever is connected.
+  **Move settings to another phone** shows one QR code that carries every server saved on the
+  device; scanning it opens SoMaS on the other phone and offers to carry each layout onto its own
+  server. The JSON text is still there behind *Show the text instead* for the rare case a camera
+  cannot be used, and a single-server copy from an older build still pastes onto whatever is
+  connected.
 - Album art drives the Now Playing backdrop; artwork URLs are resolved through `/imageproxy`,
   retrying with the bearer token when a server requires authentication.
 - Artwork falls back to deterministic generated covers, so the UI never shows broken images.

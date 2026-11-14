@@ -4,7 +4,9 @@
 
   Copy this file to /boot/config/plugins/dockerMan/templates-user/ on the server, then use
   Docker -> Add Container and pick "SoMaS" from the template list. The icon is the image's own
-  mark, served by the container itself, so no external hosting is involved.
+  mark, served by the container itself, so no external hosting is involved — but Unraid does not
+  expand [IP]/[PORT:n] in the <Icon> field, so this file spells the address out. Replace
+  192.168.1.20:8080 below with your server's address and the port you map to container port 80.
 -->
 <Container version="2">
   <Name>SoMaS</Name>
@@ -20,7 +22,7 @@
   <Category>MediaApp:Music MediaServer:Music</Category>
   <WebUI>http://[IP]:[PORT:80]/</WebUI>
   <TemplateURL/>
-  <Icon>http://[IP]:[PORT:80]/icons/icon-transparent-128.png</Icon>
+  <Icon>http://192.168.1.20:8080/icons/icon-transparent-128.png</Icon>
   <ExtraParams>--restart unless-stopped</ExtraParams>
   <PostArgs/>
   <CPUset/>
