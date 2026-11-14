@@ -281,6 +281,15 @@ export function SettingsScreen() {
             <Icon name="external" size={18} />
           </a>
         ) : null}
+        <a
+          className="link-row"
+          href="https://github.com/triwayben/SoMaS"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span>SoMaS on GitHub</span>
+          <Icon name="external" size={18} />
+        </a>
       </Section>
 
       <p className="footnote">
