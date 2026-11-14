@@ -67,9 +67,10 @@ generated from that master by `node scripts/make-icons.mjs`:
 - `icon-128`, `icon-180`, `icon-192`, `icon-512` and `icon-maskable-512` — the mark on its dark tile,
   which is what the app, a home screen and Android's maskable slot use.
 - `favicon-64` and `icon-circle-512` — the same, cut to a circle, for a tab or a round app icon.
-- `icon-plate-128` and `icon-plate-512` — the mark on a light square plate. **This is the pair to
-  point Unraid or any dashboard at:** the house outline in the artwork is black, so it disappears
-  on a dark background, and the plate is what keeps it visible.
+- `icon-tile-128` and `icon-tile-512` — the mark on a filled slate tile that reaches every edge,
+  with the black house outline lifted to white. **This is the pair to point Unraid or any dashboard
+  at:** a transparent or pale version reads only as a thin outline, and at tile size that looks like
+  a small icon beside other containers' full-bleed artwork.
 - `icon-transparent-128` and `icon-transparent-512` — no plate at all, for a surface that supplies
   its own light background. On a dark one only the blue S survives.
 
@@ -302,13 +303,13 @@ app works as before and the guest features simply have nowhere to live.
 The image carries `net.unraid.docker.icon`, pointing at the committed artwork in this repository:
 
 ```
-https://raw.githubusercontent.com/triwayben/SoMaS/main/public/icons/icon-plate-128.png
+https://raw.githubusercontent.com/triwayben/SoMaS/main/public/icons/icon-tile-128.png
 ```
 
 Adding the container is the whole setup — there is no Icon URL to type. The repository is public, so
 GitHub serves that file directly, and `public/icons/` stays the single source: replacing the
 master and rerunning `node scripts/make-icons.mjs` updates the tile as well as the app.
-(`https://cdn.jsdelivr.net/gh/triwayben/SoMaS@main/public/icons/icon-plate-128.png` is the same file
+(`https://cdn.jsdelivr.net/gh/triwayben/SoMaS@main/public/icons/icon-tile-128.png` is the same file
 through jsDelivr if GitHub's raw host is ever blocked.)
 
 A public address is required, not a shortcut. Unraid downloads a container's icon **itself, on the
@@ -318,14 +319,14 @@ a host literally called `[IP]` for a picture, gets nothing, and caches the miss.
 `/icons/` files are still served and correct — they are what the browser tab, a home screen and the
 manifest use.
 
-The plate version is the one to publish: the mark's house outline is black, and the transparent
-variant is 9% opaque pixels at a median brightness of 75/255, so on a dark dashboard only the blue S
-survives. The plate is square and edge to edge, with the artwork scaled slightly past the margins,
-because rounded corners leave transparencies that make the icon read as inset and small beside the
-containers around it.
+The tile version is the one to publish. The transparent variant is 9% opaque pixels at a median
+brightness of 75/255, and a light plate vanishes into a pale dashboard, so either leaves a thin
+outline that reads as a small icon. `icon-tile-128.png` fills the square with a slate tile, lifts
+the black outline to white so it shows on any background, and scales the artwork slightly past the
+master's own margins.
 
 To keep the picture on your own network instead, point the container's **Icon URL** at
-`http://<nas-ip>:<port>/icons/icon-plate-128.png`. That address has to be the NAS's own, and it only
+`http://<nas-ip>:<port>/icons/icon-tile-128.png`. That address has to be the NAS's own, and it only
 resolves once the container is running.
 
 ### If your tile is a question mark
@@ -340,7 +341,7 @@ docker inspect somas --format '{{json .Config.Labels}}'
 
 # can the Unraid server itself download the picture?
 curl -o /dev/null -s -w "%{http_code} %{content_type}\n" \
-  https://raw.githubusercontent.com/triwayben/SoMaS/main/public/icons/icon-plate-128.png
+  https://raw.githubusercontent.com/triwayben/SoMaS/main/public/icons/icon-tile-128.png
 ```
 
 The `curl` must print `200 image/png`; `000` or a connection error means the server has no outbound
@@ -355,7 +356,7 @@ The tile is small, so that file is 128px — the size it draws — with no backg
 through. `icon-transparent-512.png` is the same mark at full size, and `icon-128.png` is the
 dark-tile version for anywhere a transparent mark would disappear.
 
-If you would rather it work with no step at all, publish `public/icons/icon-plate-128.png` at
+If you would rather it work with no step at all, publish `public/icons/icon-tile-128.png` at
 a fixed public https URL (a gist or a one-file site) and use that in the icon label: a baked label
 has to point somewhere reachable, and the address of your NAS is not knowable at build time.
 
@@ -366,11 +367,11 @@ container rather than dockerman, and has to spell the icon out for the same reas
 labels:
   net.unraid.docker.managed: composeman
   net.unraid.docker.webui: "http://192.168.1.20:8080/"
-  net.unraid.docker.icon: "http://192.168.1.20:8080/icons/icon-plate-128.png"
+  net.unraid.docker.icon: "http://192.168.1.20:8080/icons/icon-tile-128.png"
 ```
 
-Unraid's Docker tile is small, so the icon is a 128px file at the size the tile draws, with its own
-light plate so the black outline in the mark survives a dark dashboard. The label above is optional:
+Unraid's Docker tile is small, so the icon is a 128px file at the size the tile draws, filled edge to
+edge so it does not look inset beside other containers. The label above is optional:
 the image already carries the published icon, and this one only matters if you would rather serve
 the picture from your own NAS.
 
