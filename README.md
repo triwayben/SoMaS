@@ -73,6 +73,9 @@ generated from that master by `node scripts/make-icons.mjs`:
   a small icon beside other containers' full-bleed artwork.
 - `icon-transparent-128` and `icon-transparent-512` — no plate at all, for a surface that supplies
   its own light background. On a dark one only the blue S survives.
+- `icon-light-128` and `icon-light-512` — the same transparent mark with its near-black outline
+  lifted to white. This is what the app's own header uses on dark themes, where the black outline
+  would disappear.
 
 The generated PNGs are committed, so a normal build does not need to run it; replace the master and
 rerun the script to change the app's icon everywhere.

@@ -517,6 +517,19 @@ img {
   margin: -8px -6px -8px -8px;
 }
 
+/* The mark's outline is drawn black; on a dark page the light-ink file is the one that reads. */
+.topbar__mark--ondark {
+  display: none;
+}
+
+:root[data-family="dark"] .topbar__mark--onlight {
+  display: none;
+}
+
+:root[data-family="dark"] .topbar__mark--ondark {
+  display: block;
+}
+
 .topbar__wordmark {
   font-size: 30px;
   font-weight: 600;
