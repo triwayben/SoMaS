@@ -1,0 +1,36 @@
+{
+  "always": [
+    "Play, pause and skip",
+    "Set the volume, and mute",
+    "Browse and search the music library",
+    "Add songs to the queue"
+  ],
+  "optional": [
+    {
+      "id": "grouping",
+      "label": "Group rooms together",
+      "commands": ["players/cmd/set_members"]
+    },
+    {
+      "id": "sleep",
+      "label": "Set a sleep timer",
+      "commands": ["players/sleep_timer/set", "players/sleep_timer/clear"]
+    },
+    {
+      "id": "source",
+      "label": "Switch a room's source",
+      "commands": ["players/cmd/select_source"]
+    },
+    {
+      "id": "sound",
+      "label": "Pick a sound mode",
+      "commands": ["players/cmd/select_sound_mode"]
+    }
+  ],
+  "forbidden": [
+    "Favourite or unfavourite anything",
+    "Scan or change the music library",
+    "Open the app's own settings",
+    "Change Music Assistant's settings or users"
+  ]
+}

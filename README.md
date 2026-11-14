@@ -200,6 +200,18 @@ Music Assistant address, and not the Music Assistant token.
 The code is a link with the key inside it, so treat it like a house key: anyone who scans it can
 control the rooms until that key is replaced.
 
+### What guests may change
+
+Settings → **Guests** lists the powers a guest has beyond playing music — grouping rooms, a sleep
+timer, switching a room's source, picking a sound mode — each with a switch. They start on, and the
+**proxy** enforces them: turning one off refuses that command from every guest phone immediately,
+not just in the app's own menus. The list of rules lives in `deploy/proxy/guest-features.json`, which
+the app imports as well, so what a guest is shown and what the proxy allows cannot drift apart.
+
+That file is also what the guest help sheet reads: tapping the **Guest** badge on a guest phone asks
+the proxy what is switched off right now and says so, so a guest is never told they can group rooms
+when the server would refuse.
+
 ### Changing the key later
 
 Settings → **Guests** → **Replace key** makes a new key, tells the proxy to use it, and shows the
@@ -208,9 +220,12 @@ guest session it opened is closed straight away rather than running to its natur
 
 No shell needed for this. The app asks the proxy with your own Music Assistant login, and the proxy
 checks with Music Assistant that the token really belongs to an admin before it changes anything —
-a guest, or a token that has been revoked, gets a refusal. The proxy keeps the new key in
-`/data/guest-key` inside its container, which is why the setup above mounts a volume there; without
-one the change lasts until the proxy restarts, and the confirmation says so when that happens.
+a guest, or a token that has been revoked, gets a refusal. Settings → Guests also remembers when the
+key last changed, so "codes shown before 14:32 no longer work" is answerable without guessing.
+
+The proxy keeps the new key in `/data/guest-key`, and the guest switches in
+`/data/guest-limits.json`, which is why the setup above mounts a volume there; without one both
+changes last until the proxy restarts, and the confirmation says so when that happens.
 `GUEST_KEY` is only the starting key for a proxy that has never been given one from SoMaS.
 
 What the proxy forwards, and what it does not:
@@ -372,11 +387,11 @@ Live state is kept in sync from Music Assistant's push events (`player_updated`,
   per login, so pointing SoMaS at a second server, or signing in as someone else on the same one,
   gives that account its own layout and switching back restores the first one's. Accounts are told
   apart by a short hash, never the token itself. The demo system keeps its own sandbox settings.
-  **Move settings to another phone** shows one QR code that carries every server saved on the
-  device; scanning it opens SoMaS on the other phone and offers to carry each layout onto its own
-  server. The JSON text is still there behind *Show the text instead* for the rare case a camera
-  cannot be used, and a single-server copy from an older build still pastes onto whatever is
-  connected.
+  **Move settings to another phone** gives one link that carries every server saved on the device;
+  send it to the other phone however you like and opening it offers to carry each layout onto its
+  own server. There is nothing to scan: the link goes through the phone's own share sheet, a
+  message to yourself, or AirDrop. The JSON text is still there behind *Show the text instead*, and
+  a single-server copy from an older build still pastes onto whatever is connected.
 - Album art drives the Now Playing backdrop; artwork URLs are resolved through `/imageproxy`,
   retrying with the bearer token when a server requires authentication.
 - Artwork falls back to deterministic generated covers, so the UI never shows broken images.

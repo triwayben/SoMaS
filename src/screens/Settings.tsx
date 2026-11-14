@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "../components/Icon";
 import { QrCode } from "../components/QrCode";
 import { Section } from "../components/Media";
@@ -10,6 +10,15 @@ import { copyText } from "../lib/clipboard";
 import { settingsWereMigrated } from "../lib/migrationNotice";
 import { exportAllPrefs, importPrefs, readPref, writePref } from "../lib/prefs";
 import { makeGuestKey, replaceGuestKey } from "../lib/guestProxy";
+import {
+  EVERYTHING_ALLOWED,
+  GUEST_OPTIONAL,
+  isAllowed,
+  loadGuestLimits,
+  sendGuestLimits,
+  type GuestFeature,
+  type GuestLimits,
+} from "../lib/guestLimits";
 import { buildGuestLink, buildSettingsLink, lastGuestHere } from "../lib/shareLinks";
 import { saveVolumeStep, useVolumeStep } from "../lib/volumeStep";
 import { THEME_FAMILIES, themesIn } from "../lib/themes";
@@ -37,7 +46,23 @@ export function SettingsScreen() {
   const [guestKey, setGuestKey] = useState(() => readPref("guestKey") ?? "");
   const [guestCode, setGuestCode] = useState<string | null>(null);
   const [replacingKey, setReplacingKey] = useState(false);
+  const [limits, setLimits] = useState<GuestLimits | null>(null);
+  const [changingLimit, setChangingLimit] = useState<string | null>(null);
+  const [keyChangedAt, setKeyChangedAt] = useState(() => readPref("guestKeyChangedAt"));
   const lastGuest = useRef(lastGuestHere());
+
+  // The proxy decides what is switched off, so ask it rather than trusting this browser's copy.
+  useEffect(() => {
+    if (!guestServer.trim()) return;
+    let cancelled = false;
+    void loadGuestLimits(guestServer).then((next) => {
+      if (!cancelled && next) setLimits(next);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const musicProviders = app.providers.filter((provider) => provider.type === "music");
   const playerProviders = app.providers.filter((provider) => provider.type === "player");
@@ -85,11 +110,59 @@ export function SettingsScreen() {
     }
     setGuestSecret(next);
     setGuestCode(buildGuestLink(guestServer, next));
+    const stamp = new Date().toISOString();
+    setKeyChangedAt(stamp);
+    writePref("guestKeyChangedAt", stamp);
     app.notify(
       result.persisted
         ? "New guest key: old codes and their sessions no longer work"
         : "New guest key until the proxy restarts — it has no writable key file",
     );
+  };
+
+  const toggleLimit = async (feature: GuestFeature) => {
+    const token = localStorage.getItem(STORAGE.token) ?? "";
+    if (!token) {
+      app.notify("Sign in again to change what guests may do");
+      return;
+    }
+    const current = limits ?? EVERYTHING_ALLOWED;
+    const off = current.off.includes(feature.id)
+      ? current.off.filter((id) => id !== feature.id)
+      : [...current.off, feature.id];
+    setLimits({ off });
+    setChangingLimit(feature.id);
+    const result = await sendGuestLimits(guestServer, token, off);
+    setChangingLimit(null);
+    if (!result.ok) {
+      setLimits(current);
+      app.notify(result.error || "Could not change that");
+      return;
+    }
+    app.notify(
+      result.persisted
+        ? `${feature.label} ${off.includes(feature.id) ? "turned off" : "turned on"} for guests`
+        : "Changed until the proxy restarts — it has no writable key file",
+    );
+  };
+
+  const copySettingsLink = async () => {
+    const copied = await copyText(shareLink);
+    app.notify(copied ? "Link copied — open it on the other phone" : "Select the link and copy it by hand");
+  };
+
+  const shareSettings = async () => {
+    if (!shareLink) return;
+    if (typeof navigator.share === "function") {
+      try {
+        await navigator.share({ title: "SoMaS settings", url: shareLink });
+        return;
+      } catch {
+        // Cancelled or unsupported after all: fall through to copying.
+      }
+    }
+    const copied = await copyText(shareLink);
+    app.notify(copied ? "Link copied — open it on the other phone" : "Select the link and copy it by hand");
   };
 
   const copyGuestLink = async () => {
@@ -280,6 +353,38 @@ export function SettingsScreen() {
             {replacingKey ? "Replacing…" : "Replace key"}
           </button>
         </div>
+
+        <p className="theme-group__label">What guests may change</p>
+        <div className="panel">
+          {GUEST_OPTIONAL.map((feature) => {
+            const on = isAllowed(limits, feature.id);
+            return (
+              <div className="panel__row" key={feature.id}>
+                <span className="panel__label">{feature.label}</span>
+                <button
+                  className={`switch ${on ? "is-on" : ""}`}
+                  role="switch"
+                  aria-checked={on}
+                  aria-label={feature.label}
+                  disabled={changingLimit === feature.id}
+                  onClick={() => void toggleLimit(feature)}
+                >
+                  <span className="switch__knob" />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+        <p className="panel__hint">
+          These are enforced by the proxy itself, so switching one off takes effect on every phone
+          holding a code, straight away.
+        </p>
+        {keyChangedAt ? (
+          <p className="panel__hint">
+            Last key replaced {new Date(keyChangedAt).toLocaleString()}. Codes shown before then no
+            longer work.
+          </p>
+        ) : null}
       </Section>
 
       <Section title="Volume">
@@ -501,12 +606,23 @@ export function SettingsScreen() {
               </div>
             </>
           ) : shareLink ? (
-            <QrCode
-              text={shareLink}
-              caption="Scan this with the new phone's camera. SoMaS opens there and offers to carry your settings over."
-            />
+            <>
+              <p className="sheet__hint settings-move__hint">
+                Send this link to the other phone — a message to yourself, AirDrop, or the share
+                sheet — and open it there. SoMaS offers to carry every server's layout over.
+              </p>
+              <code className="settings-move__link">{shareLink}</code>
+              <div className="button-row">
+                <button className="btn btn--primary" onClick={() => void shareSettings()}>
+                  Share link
+                </button>
+                <button className="btn" onClick={() => void copySettingsLink()}>
+                  Copy link
+                </button>
+              </div>
+            </>
           ) : (
-            <p className="sheet__hint settings-move__hint">Making the code…</p>
+            <p className="sheet__hint settings-move__hint">Making the link…</p>
           )}
           {move !== "paste" && !showText && shareLink ? (
             <div className="button-row">

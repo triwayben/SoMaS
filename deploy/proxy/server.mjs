@@ -16,6 +16,7 @@
  *   GUEST_KEY  the starting guest key, used until one is set from SoMaS
  *   PORT       port to listen on (default 8090)
  *   GUEST_KEY_FILE  where a replaced key is kept (default /data/guest-key)
+ *   GUEST_LIMITS_FILE  which optional powers guests may use (default /data/guest-limits.json)
  *
  * The key can be replaced at runtime from SoMaS (Settings -> Guests), without touching this
  * container's environment: POST /owner/guest-key with an admin Music Assistant token in the
@@ -34,6 +35,15 @@ import { pathToFileURL } from "node:url";
 const GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 const AUTH_ID = "upstream-auth";
 const AUTH_TIMEOUT_MS = 10_000;
+
+/**
+ * What a guest may do, in one place: the app imports this same file to word its explanation, so
+ * the list a guest is shown and the list the proxy enforces cannot drift apart. `optional` entries
+ * can be switched off by the owner; their commands are the only thing a switch removes.
+ */
+const FEATURES = JSON.parse(
+  fs.readFileSync(new URL("./guest-features.json", import.meta.url), "utf8"),
+);
 
 /** Commands a guest may run; everything else is refused. */
 const ALLOWED_PREFIXES = ["players/", "player_queues/", "music/", "providers", "config/providers"];
@@ -200,6 +210,28 @@ function parseMusicAssistant(url) {
 
 /** Where a key replaced from SoMaS is kept, so a restart does not bring the old one back. */
 const KEY_FILE = process.env.GUEST_KEY_FILE ?? "/data/guest-key";
+/** Which optional powers are switched off for guests; empty means all of them are allowed. */
+const LIMITS_FILE = process.env.GUEST_LIMITS_FILE ?? "/data/guest-limits.json";
+
+function readLimits() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(LIMITS_FILE, "utf8"));
+    const off = Array.isArray(parsed?.off) ? parsed.off.filter((id) => typeof id === "string") : [];
+    return { off };
+  } catch {
+    return { off: [] };
+  }
+}
+
+function writeLimits(limits) {
+  try {
+    fs.mkdirSync(path.dirname(LIMITS_FILE), { recursive: true });
+    fs.writeFileSync(LIMITS_FILE, JSON.stringify(limits), { mode: 0o600 });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 function readSavedKey() {
   try {
@@ -227,6 +259,12 @@ export function createProxyServer({ maUrl, maToken, guestKey }) {
   const base = maUrl.replace(/\/+$/, "");
   // A key replaced earlier outlives a restart; the environment is only the starting point.
   let currentGuestKey = readSavedKey() ?? guestKey;
+  let limits = readLimits();
+
+  /** The optional power a command belongs to, if it belongs to one. */
+  function optionalFeature(command) {
+    return FEATURES.optional.find((feature) => feature.commands.includes(command)) ?? null;
+  }
   /** Live guest connections, so a rotation can end the access it just revoked. */
   const guestSessions = new Set();
 
@@ -388,6 +426,49 @@ export function createProxyServer({ maUrl, maToken, guestKey }) {
     });
   };
 
+  /** Switches optional guest powers on or off, for a caller who proves they are an admin. */
+  const changeLimits = (request, response) => {
+    const chunks = [];
+    request.on("data", (chunk) => chunks.push(chunk));
+    request.on("end", async () => {
+      const reply = (status, body) => {
+        response
+          .writeHead(status, {
+            "content-type": "application/json",
+            "cache-control": "no-store",
+            "access-control-allow-origin": "*",
+          })
+          .end(JSON.stringify(body));
+      };
+      let body = {};
+      try {
+        body = JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
+      } catch {
+        body = {};
+      }
+      const known = new Set(FEATURES.optional.map((feature) => feature.id));
+      const off = Array.isArray(body?.off) ? body.off.filter((id) => typeof id === "string") : null;
+      if (!off || off.some((id) => !known.has(id))) {
+        reply(400, { error: "Unknown guest limit" });
+        return;
+      }
+      const token = String(request.headers.authorization ?? "")
+        .replace(/^Bearer\s+/i, "")
+        .trim();
+      if (!token) {
+        reply(401, { error: "An admin Music Assistant token is required" });
+        return;
+      }
+      if (!(await tokenIsAdmin(token))) {
+        reply(403, { error: "Only an admin Music Assistant login can change guest limits" });
+        return;
+      }
+      limits = { off };
+      const persisted = writeLimits(limits);
+      reply(200, { ok: true, persisted, off: limits.off });
+    });
+  };
+
   const server = http.createServer((request, response) => {
     if (request.method === "OPTIONS") {
       response
@@ -401,6 +482,21 @@ export function createProxyServer({ maUrl, maToken, guestKey }) {
     }
     if (request.url === "/owner/guest-key" && request.method === "POST") {
       rotateKey(request, response);
+      return;
+    }
+    // Public on purpose: a guest phone reads this to explain its own limits, and it holds no secret.
+    if (request.url === "/guest-limits") {
+      response
+        .writeHead(200, {
+          "content-type": "application/json",
+          "cache-control": "no-store",
+          "access-control-allow-origin": "*",
+        })
+        .end(JSON.stringify({ off: limits.off }));
+      return;
+    }
+    if (request.url === "/owner/guest-limits" && request.method === "POST") {
+      changeLimits(request, response);
       return;
     }
     if (request.url === "/health") {
@@ -577,6 +673,12 @@ export function createProxyServer({ maUrl, maToken, guestKey }) {
         }
         if (!allowedCommand(command)) {
           refuse(messageId, `${command} is not available to guests`);
+          return;
+        }
+        // Allowed in principle, but switched off for guests by the owner.
+        const optional = optionalFeature(command);
+        if (optional && limits.off.includes(optional.id)) {
+          refuse(messageId, `${optional.label} is turned off for guests`);
           return;
         }
         upstream?.send(JSON.stringify({ message_id: messageId, command, args: message.args ?? {} }));

@@ -1,33 +1,42 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import {
+  GUEST_ALWAYS,
+  GUEST_FORBIDDEN,
+  GUEST_OPTIONAL,
+  isAllowed,
+  loadGuestLimits,
+  type GuestLimits,
+} from "../lib/guestLimits";
+import { useApp } from "../store";
 import { Icon } from "./Icon";
 import { Sheet } from "./Sheet";
 
 /**
  * Names the guest view, and explains it when tapped.
  *
- * A guest controls the music but cannot change the library or the server, and nothing on screen
- * said so: a missing heart could be mistaken for a bug. The list below matches what the guest proxy
- * actually allows, so it is an explanation rather than a promise the server will not keep.
+ * Both lists come from the same file the proxy enforces, and which optional powers are switched on
+ * is read from the proxy itself, so a guest is never told they can do something the server will
+ * refuse a moment later.
  */
-const CAN = [
-  "Play, pause and skip",
-  "Set the volume, and mute",
-  "Group rooms together",
-  "Browse and search the music library",
-  "Add to and reorder the queue",
-  "Pick a source and a sound mode",
-  "Set a sleep timer",
-];
-
-const CANNOT = [
-  "Favourite or unfavourite anything",
-  "Scan or change the music library",
-  "Open the app's own settings",
-  "Change Music Assistant's settings or users",
-];
-
 export function GuestBadge() {
+  const app = useApp();
   const [open, setOpen] = useState(false);
+  const [limits, setLimits] = useState<GuestLimits | null>(null);
+
+  // Asked when the sheet opens: a guest changes nothing, so their copy is never the authority.
+  useEffect(() => {
+    if (!open || app.backendKind !== "mas") return;
+    let cancelled = false;
+    void loadGuestLimits(app.baseUrl).then((next) => {
+      if (!cancelled && next) setLimits(next);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, app.baseUrl, app.backendKind]);
+
+  const allowed = GUEST_OPTIONAL.filter((feature) => isAllowed(limits, feature.id));
+  const withheld = GUEST_OPTIONAL.filter((feature) => !isAllowed(limits, feature.id));
 
   return (
     <>
@@ -55,9 +64,9 @@ export function GuestBadge() {
 
         <p className="theme-group__label">What works</p>
         <div className="panel">
-          {CAN.map((item) => (
-            <div className="panel__row" key={item}>
-              <span className="panel__label">{item}</span>
+          {[...GUEST_ALWAYS, ...allowed.map((feature) => feature.label)].map((label) => (
+            <div className="panel__row" key={label}>
+              <span className="panel__label">{label}</span>
               <span className="guest-allow">
                 <Icon name="check" size={16} />
               </span>
@@ -67,16 +76,16 @@ export function GuestBadge() {
 
         <p className="theme-group__label">What does not</p>
         <div className="panel">
-          {CANNOT.map((item) => (
-            <div className="panel__row" key={item}>
-              <span className="panel__label guest-deny">{item}</span>
+          {[...withheld.map((feature) => feature.label), ...GUEST_FORBIDDEN].map((label) => (
+            <div className="panel__row" key={label}>
+              <span className="panel__label guest-deny">{label}</span>
             </div>
           ))}
         </div>
 
         <p className="footnote">
-          Ask for a new code if you need more than this; codes can be replaced at any time, which
-          ends every guest session at once.
+          The person whose house this is decides which of these are on, and can replace the code at
+          any time, which ends every guest session at once.
         </p>
       </Sheet>
     </>
