@@ -67,10 +67,11 @@ generated from that master by `node scripts/make-icons.mjs`:
 - `icon-128`, `icon-180`, `icon-192`, `icon-512` and `icon-maskable-512` — the mark on its dark tile,
   which is what the app, a home screen and Android's maskable slot use.
 - `favicon-64` and `icon-circle-512` — the same, cut to a circle, for a tab or a round app icon.
-- `icon-transparent-128` and `icon-transparent-512` — no tile behind the mark, for Unraid's Docker
-  tile and any other dashboard that draws its own background. The mark keeps its own soft shadow,
-  which disappears on a dark background but reads as a faint grey smudge on white — use the tile
-  version there.
+- `icon-plate-128` and `icon-plate-512` — the mark on a light rounded plate. **This is the pair to
+  point Unraid or any dashboard at:** the house outline in the artwork is black, so it disappears
+  on a dark background, and the plate is what keeps it visible.
+- `icon-transparent-128` and `icon-transparent-512` — no plate at all, for a surface that supplies
+  its own light background. On a dark one only the blue S survives.
 
 The generated PNGs are committed, so a normal build does not need to run it; replace the master and
 rerun the script to change the app's icon everywhere.
@@ -304,22 +305,46 @@ The image deliberately carries **no** `net.unraid.docker.icon` label. Unraid exp
 leaves the tile as a question mark, and caches that miss — which is why a force-update does not
 bring it back. The app does serve its own mark; the address just has to be a real one.
 
-SoMaS serves `http://<nas-ip>:<port>/icons/icon-transparent-128.png`, and your browser can reach
-that, so point Unraid at it:
+SoMaS serves `http://<nas-ip>:<port>/icons/icon-plate-128.png`, and the Unraid server can reach
+that, so point the tile at it:
 
 1. Docker tab → the container → **Edit** → **Icon URL**:
-   `http://192.168.1.20:8080/icons/icon-transparent-128.png`, with your own address and host port.
+   `http://192.168.1.20:8080/icons/icon-plate-128.png`, with your own address and host port.
 2. **Apply**, so the container is recreated with that field.
 3. Delete the cached copies, or Unraid keeps showing the old (missing) picture:
    `/var/lib/docker/unraid/images/<container>-icon.png` and
    `/var/local/emhttp/plugins/dynamix.docker.manager/images/<container>-icon.png`.
 4. Reload the Docker tab.
 
+Use `icon-plate-128.png` rather than the transparent one. Unraid's dashboard is dark, and the mark's
+house outline is black: the transparent file measures as 9% opaque pixels at a median brightness of
+75/255, so on a dark tile it reads as a stray blue shape — or as nothing at all.
+
+### If the tile is still blank
+
+Unraid fetches the icon from the **Unraid server itself**, so the usual causes are an address it
+cannot reach and a cached failure. From the Unraid terminal:
+
+```bash
+# what the container was told, if anything
+docker inspect somas --format '{{json .Config.Labels}}'
+
+# is the picture actually served, and as a PNG?
+curl -o /dev/null -s -w "%{http_code} %{content_type}\n" http://<nas-ip>:8080/icons/icon-plate-128.png
+```
+
+The `curl` must print `200 image/png`. A `200 text/html` means the app answered with its page
+fallback instead of the file — check that the port is the host port mapped to container port 80. A
+`000` or a connection error means the address is wrong for this network. Once the URL works, fill
+in **Icon URL**, apply, delete the two cached files above, and reload the Docker tab. A template
+copied from `deploy/unraid/SoMaS.xml` keeps whatever address was in that file, so edit `<Icon>` or
+the field itself — the tile will not fix itself on a force-update.
+
 The tile is small, so that file is 128px — the size it draws — with no background so the tile shows
 through. `icon-transparent-512.png` is the same mark at full size, and `icon-128.png` is the
 dark-tile version for anywhere a transparent mark would disappear.
 
-If you would rather it work with no step at all, publish `public/icons/icon-transparent-128.png` at
+If you would rather it work with no step at all, publish `public/icons/icon-plate-128.png` at
 a fixed public https URL (a gist or a one-file site) and use that in the icon label: a baked label
 has to point somewhere reachable, and the address of your NAS is not knowable at build time.
 
@@ -330,13 +355,13 @@ container rather than dockerman, and has to spell the icon out for the same reas
 labels:
   net.unraid.docker.managed: composeman
   net.unraid.docker.webui: "http://192.168.1.20:8080/"
-  net.unraid.docker.icon: "http://192.168.1.20:8080/icons/icon-transparent-128.png"
+  net.unraid.docker.icon: "http://192.168.1.20:8080/icons/icon-plate-128.png"
 ```
 
-Unraid's Docker tile is small, so the labels point at `icon-transparent-128.png`: a 128px file, at
-the size the tile draws, with no background of its own so the tile shows through. `icon-transparent-512.png`
-is the same picture at full size if your template wants it, and `icon-128.png` is the dark-tile
-version for anywhere a transparent mark would disappear.
+Unraid's Docker tile is small, so the labels point at `icon-plate-128.png`: a 128px file at the size
+the tile draws, with its own light plate so the black outline in the mark survives a dark dashboard.
+`icon-plate-512.png` is the same picture at full size if your template wants it, and `icon-128.png`
+is the dark-plate version the app itself uses.
 
 `deploy/unraid/docker-compose.yml` is a ready copy — replace the address with your server's and use
 whatever host port you mapped to container port 80. Both URLs must be reachable **from the Unraid

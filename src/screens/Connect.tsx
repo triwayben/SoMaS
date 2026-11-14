@@ -92,6 +92,7 @@ export function ConnectScreen() {
       <div className="connect__glow" aria-hidden="true" />
       <div className="connect__inner">
         <div className="connect__brand">
+          <img className="connect__mark" src="/icons/icon-192.png" alt="" width={20} height={20} />
           <span className="connect__logo">SoMaS</span>
           <span className="connect__badge">for Music Assistant</span>
         </div>

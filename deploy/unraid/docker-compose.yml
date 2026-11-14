@@ -1,7 +1,8 @@
 # Unraid Docker Compose Manager starting point for SoMaS.
 #
 # Copy this into a new stack in Unraid's Compose Manager, then replace <nas-ip> with the server's
-# address (e.g. 192.168.1.20). These labels are what give the container its icon and its clickable
+# address (e.g. 192.168.1.20) — Unraid fetches the icon from the NAS itself, so a placeholder or a
+# stale address leaves the tile blank. These labels are what give the container its icon and its clickable
 # WebUI button on the Unraid Docker and Dashboard pages: without them the tile is a question mark
 # with no link, even though the app itself works.
 #
@@ -9,6 +10,9 @@
 # add labels. It deliberately carries no icon label: Unraid does not expand [IP]/[PORT:n] when
 # fetching an icon, and the image cannot know the address of the machine serving it. A stack spells
 # the icon and webui out itself, and sets managed=composeman so Compose Manager owns the container.
+#
+# The icon is icon-plate-128.png: the mark on a light plate, which stays readable on Unraid's dark
+# dashboard. icon-transparent-128.png is for surfaces with a light background.
 services:
   somas:
     image: ghcr.io/triwayben/somas:latest
@@ -19,4 +23,4 @@ services:
     labels:
       net.unraid.docker.managed: composeman
       net.unraid.docker.webui: "http://<nas-ip>:8080/"
-      net.unraid.docker.icon: "http://<nas-ip>:8080/icons/icon-transparent-128.png"
+      net.unraid.docker.icon: "http://<nas-ip>:8080/icons/icon-plate-128.png"

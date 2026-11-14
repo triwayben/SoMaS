@@ -4160,9 +4160,17 @@ button.group-row__main:disabled {
 
 .connect__brand {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+/* The app's own mark, at the size a wordmark's dot would be. */
+.connect__mark {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
 }
 
 .connect__logo {
