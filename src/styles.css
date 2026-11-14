@@ -500,6 +500,31 @@ img {
   flex-direction: column;
 }
 
+/* Home's top-left: the app's mark and name, standing where the room name used to open the rooms. */
+.topbar__brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.topbar__mark {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+}
+
+.topbar__wordmark {
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: 0.005em;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .topbar__system {
   display: flex;
   align-items: center;

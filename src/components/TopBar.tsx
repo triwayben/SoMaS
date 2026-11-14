@@ -9,12 +9,15 @@ export function TopBar({
   onTitle,
   onBack,
   right,
+  brand,
 }: {
   title: string;
   subtitle?: string;
   onTitle?: () => void;
   onBack?: () => void;
   right?: ReactNode;
+  /** The app's own mark and name instead of a title — used on Home, where the title was the room. */
+  brand?: boolean;
 }) {
   // A guest session looks almost like any other, so name it rather than let an absent control be
   // the only clue that this phone is not the owner's.
@@ -27,7 +30,12 @@ export function TopBar({
         </button>
       ) : null}
       <div className="topbar__titles">
-        {onTitle ? (
+        {brand ? (
+          <span className="topbar__brand">
+            <img className="topbar__mark" src="/icons/icon-192.png" alt="" width={24} height={24} />
+            <span className="topbar__wordmark">SoMaS</span>
+          </span>
+        ) : onTitle ? (
           <button className="topbar__system" onClick={onTitle} type="button">
             <span>{title}</span>
             <Icon name="chevronDown" size={18} />
