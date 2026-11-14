@@ -4295,6 +4295,12 @@ button.group-row__main:disabled {
   margin: -4px 0 16px;
 }
 
+.connect__ha {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 18px;
+}
+
 .connect__find-note {
   margin: 0;
   color: var(--text-3);

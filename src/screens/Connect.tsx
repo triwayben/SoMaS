@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Icon } from "../components/Icon";
 import { loginWithPassword, normalizeBaseUrl } from "../api/mas";
 import { discoverServers } from "../lib/discoverServer";
+import { haLoginAvailable, startHaLogin } from "../lib/haLogin";
 import { accountHash } from "../lib/prefs";
 import { loadSuggestedServer } from "../lib/serverSuggestion";
 import { STORAGE, useApp } from "../store";
@@ -41,6 +42,36 @@ export function ConnectScreen() {
     if (!app.baseUrl || serverTouched.current) return;
     setServer((current) => (current.trim() ? current : app.baseUrl.replace(/^https?:\/\//, "")));
   }, [app.baseUrl]);
+
+  // Offer Home Assistant sign-in only when the server in the field actually has it set up.
+  const [haAvailable, setHaAvailable] = useState(false);
+  useEffect(() => {
+    setHaAvailable(false);
+    if (!server.trim()) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      void haLoginAvailable(server, controller.signal).then((available) => {
+        if (!controller.signal.aborted) setHaAvailable(available);
+      });
+    }, 400);
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [server]);
+
+  const signInWithHa = async () => {
+    setError(undefined);
+    setBusy(true);
+    try {
+      await startHaLogin(server);
+      // In a popup the page stays here; the popup reports back, so stop showing a spinner.
+      setBusy(false);
+    } catch (err) {
+      setError((err as Error).message || "Could not start Home Assistant sign-in");
+      setBusy(false);
+    }
+  };
 
   const connecting = app.phase === "connecting" || busy;
 
@@ -157,6 +188,23 @@ export function ConnectScreen() {
                   : "Find my server"}
             </button>
           </div>
+
+          {haAvailable ? (
+            <div className="connect__ha">
+              <button
+                className="btn btn--primary btn--block"
+                type="button"
+                onClick={() => void signInWithHa()}
+                disabled={connecting}
+              >
+                Sign in with Home Assistant
+              </button>
+              <span className="field__hint">
+                Uses the Music Assistant account linked to your Home Assistant login — no token to
+                copy. Or use a token below.
+              </span>
+            </div>
+          ) : null}
 
           {mode === "token" ? (
             <label className="field">

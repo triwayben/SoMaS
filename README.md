@@ -423,6 +423,21 @@ The Connect screen suggests a server so it does not have to be typed on every de
 3. Hit **Connect**, or **Explore the demo system** to browse the full UI with a simulated
    eight-room system and library.
 
+### Sign in with Home Assistant
+
+When the Music Assistant server has its **Home Assistant** plugin connected, the Connect screen
+shows **Sign in with Home Assistant** above the token field. It runs Music Assistant's own Home
+Assistant login: sign in to Home Assistant once and SoMaS comes back signed in as the Music
+Assistant user linked to that Home Assistant account (an existing Music Assistant user with the
+same username is linked automatically). There is no token to copy, and the layout follows the
+username, so signing in again later keeps it.
+
+- Inside a Home Assistant dashboard (a Webpage card), Home Assistant will not show its login page
+  in a frame, so the sign-in opens in a small popup that closes itself. Allow pop-ups if asked.
+- If Home Assistant accepts the login but Music Assistant shows *Authentication Failed*, Music
+  Assistant's own link to Home Assistant is down: Music Assistant → Settings → Plugins → Home
+  Assistant → reload or **Reconfigure**, then try again.
+
 If the page is served over `https://` the browser will block a plain `ws://` connection, so use
 HTTPS on both sides or serve this app over HTTP on your LAN.
 

@@ -24,6 +24,13 @@ import { permissionsFrom, UNRESTRICTED, type Permissions } from "./lib/permissio
 import { leaderOf, queueFor } from "./lib/players";
 import { accountHash as hashAccount, readPrefJson, scopedKey, setPrefScope, writePrefJson } from "./lib/prefs";
 import { clearLaunchHash, readLaunch, rememberGuest } from "./lib/shareLinks";
+import {
+  handHaLoginToOpener,
+  haLoginIdentity,
+  onHaLoginMessage,
+  takeHaLoginReturn,
+  type HaLoginResult,
+} from "./lib/haLogin";
 
 const STORAGE = {
   server: "somas.server",
@@ -432,6 +439,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [handleEvent, hydrate, teardown],
   );
 
+  const connectWithHa = useCallback(
+    async (result: HaLoginResult) => {
+      const identity = await haLoginIdentity(result);
+      await connect({ baseUrl: result.server, token: result.token, accountHash: identity });
+    },
+    [connect],
+  );
+
+  // A sign-in finished in a popup arrives as a message, wherever this app happens to be.
+  useEffect(() => onHaLoginMessage((result) => void connectWithHa(result)), [connectWithHa]);
+
   const connectDemo = useCallback(async () => {
     await connect({ demo: true });
   }, [connect]);
@@ -452,6 +470,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // A guest code outranks whatever this browser remembered: it signs in to the proxy on the
       // spot, so the Connect screen never appears. An #import= code is left to the shell, which
       // asks before replacing what is saved here.
+      // Back from "Sign in with Home Assistant". In the popup an embedded SoMaS opened, hand the
+      // token to it and close; opened on its own, finish signing in right here.
+      const haReturn = takeHaLoginReturn();
+      if (haReturn) {
+        if (handHaLoginToOpener(haReturn)) return;
+        await connectWithHa(haReturn);
+        return;
+      }
       const launch = await readLaunch();
       if (cancelled) return;
       if (launch?.kind === "guest") {
