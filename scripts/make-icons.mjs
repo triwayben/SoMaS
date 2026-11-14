@@ -7,8 +7,6 @@ import { inflateSync, deflateSync } from "node:zlib";
 const SRC = "assets/app-icon.png";
 /** Tile colour behind the transparent master. */
 const TILE = [0x23, 0x23, 0x26];
-/** Lighter plate for surfaces whose own background is dark, such as Unraid's Docker tile. */
-const PLATE = [0xf1, 0xf3, 0xf6];
 
 // ---- decode ---------------------------------------------------------------
 const buf = readFileSync(SRC);
@@ -216,21 +214,22 @@ function circleIcon(size) {
 }
 
 /**
- * The mark on a light plate: the house outline is drawn black, so on a dark surface — Unraid's
- * Docker tile, most dashboards — a transparent version loses the outline and reads as a stray
- * blue shape. This keeps the whole mark legible wherever the background belongs to someone else.
+ * The mark on a solid tile that fills the square, for a dashboard that draws its own background.
  *
- * The artwork is drawn slightly larger than the plate, because a dashboard shows this file at about
- * 32px and the master's own padding made the mark read as small beside other containers' icons.
+ * A transparent version loses the black house outline entirely, and a light plate disappears into
+ * Unraid's pale tile so that only a thin outline is left — which is what made the icon look small
+ * beside other containers' edge-to-edge artwork. A filled tile the colour of the app's own reads at
+ * full size in both of Unraid's themes, and the artwork is scaled slightly past the master's own
+ * margins so the mark sits as wide as it can without clipping the roof.
  */
-function iconPlate(size, zoom = 1.06) {
+function iconTile(size, zoom = 1.04, tint = [0x3c, 0x4b, 0x60]) {
   const artSize = Math.round(size * zoom);
   const art = sample(artSize);
   const out = Buffer.alloc(size * size * 4);
   for (let i = 0; i < size * size; i++) {
-    out[i * 4] = PLATE[0];
-    out[i * 4 + 1] = PLATE[1];
-    out[i * 4 + 2] = PLATE[2];
+    out[i * 4] = tint[0];
+    out[i * 4 + 1] = tint[1];
+    out[i * 4 + 2] = tint[2];
     out[i * 4 + 3] = 255;
   }
   const start = Math.round((size - artSize) / 2);
@@ -243,13 +242,19 @@ function iconPlate(size, zoom = 1.06) {
       const s = (sy * artSize + sx) * 4;
       const d = (y * size + x) * 4;
       const a = art[s + 3] / 255;
-      out[d] = Math.round(art[s] * a + PLATE[0] * (1 - a));
-      out[d + 1] = Math.round(art[s + 1] * a + PLATE[1] * (1 - a));
-      out[d + 2] = Math.round(art[s + 2] * a + PLATE[2] * (1 - a));
+      // The house outline is near-black, which would vanish on any tile dark enough to show on a pale
+      // dashboard, so it is lifted to white; the blue S is bright enough to leave alone.
+      const luma = 0.2126 * art[s] + 0.7152 * art[s + 1] + 0.0722 * art[s + 2];
+      const ink = luma < 70 ? 245 : 0;
+      const r = ink || art[s];
+      const g = ink || art[s + 1];
+      const b = ink || art[s + 2];
+      out[d] = Math.round(r * a + tint[0] * (1 - a));
+      out[d + 1] = Math.round(g * a + tint[1] * (1 - a));
+      out[d + 2] = Math.round(b * a + tint[2] * (1 - a));
     }
   }
-  // Square, edge to edge: a rounded plate leaves transparent corners, which on a dark dashboard
-  // makes the icon look inset and smaller than the containers beside it.
+  // Square and edge to edge: transparent corners make an icon look inset beside full-bleed ones.
   return encode(size, out);
 }
 
@@ -270,9 +275,10 @@ writeFileSync("public/icons/icon-circle-512.png", circleIcon(512));
 writeFileSync("public/icons/icon-transparent-128.png", iconTransparent(128));
 writeFileSync("public/icons/icon-transparent-512.png", iconTransparent(512));
 
-// The one to point a dashboard at: its own light plate, so it does not vanish on a dark tile.
-writeFileSync("public/icons/icon-plate-128.png", iconPlate(128));
-writeFileSync("public/icons/icon-plate-512.png", iconPlate(512));
+// The one to point a dashboard at: a filled tile, so it reads at full size on a pale background
+// and keeps the black outline visible on a dark one.
+writeFileSync("public/icons/icon-tile-128.png", iconTile(128));
+writeFileSync("public/icons/icon-tile-512.png", iconTile(512));
 
 
 console.log(`built icons from ${SRC} (${W}x${H})`);

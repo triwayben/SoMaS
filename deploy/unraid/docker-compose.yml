@@ -20,4 +20,4 @@ services:
       net.unraid.docker.managed: composeman
       net.unraid.docker.webui: "http://<nas-ip>:8080/"
       # Optional: same mark, but served from your own NAS instead of the published copy.
-      net.unraid.docker.icon: "http://<nas-ip>:8080/icons/icon-plate-128.png"
+      net.unraid.docker.icon: "http://<nas-ip>:8080/icons/icon-tile-128.png"

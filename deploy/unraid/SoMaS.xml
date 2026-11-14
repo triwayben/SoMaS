@@ -8,8 +8,8 @@
   itself, on the server, before it knows the container's address, and does not expand [IP]/[PORT:n]
   in an icon it fetches. The image carries the same label, so this field is only a convenience.
 
-  icon-plate-128.png is the variant with a light plate behind the mark, so the black house outline
-  in the artwork stays visible on Unraid's dark dashboard.
+  icon-tile-128.png is the variant with a filled slate tile behind the mark and the outline lifted to
+  white, so it reads at full size instead of as a thin outline on either of Unraid's themes.
 -->
 <Container version="2">
   <Name>SoMaS</Name>
@@ -25,7 +25,7 @@
   <Category>MediaApp:Music MediaServer:Music</Category>
   <WebUI>http://[IP]:[PORT:80]/</WebUI>
   <TemplateURL/>
-  <Icon>https://raw.githubusercontent.com/triwayben/SoMaS/main/public/icons/icon-plate-128.png</Icon>
+  <Icon>https://raw.githubusercontent.com/triwayben/SoMaS/main/public/icons/icon-tile-128.png</Icon>
   <ExtraParams>--restart unless-stopped</ExtraParams>
   <PostArgs/>
   <CPUset/>

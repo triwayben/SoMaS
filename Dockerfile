@@ -25,14 +25,15 @@ EXPOSE 80
 # expands [IP]/[PORT:n] in the webui field but not in an icon it fetches. A baked `http://[IP]/...`
 # therefore asks for a host literally called "[IP]" and leaves a question mark. This points at the
 # committed artwork in this repository, so adding the container is the whole setup. The plate version
-# is used because the mark's black outline would vanish on Unraid's dark dashboard.
+# is a filled slate tile with the outline lifted to white, because a transparent or pale version reads
+# as a thin outline — and therefore as a small icon — beside other containers' full-bleed artwork.
 #
 # `managed=dockerman` is what makes dockerman (Unraid 7's Docker manager) show the tile and button
 # for a container it did not create itself, so a plain `docker run` is covered. A Compose Manager
 # stack should set `composeman` in its own labels, which overrides this one.
 LABEL net.unraid.docker.managed="dockerman" \
       net.unraid.docker.webui="http://[IP]:[PORT:80]/" \
-      net.unraid.docker.icon="https://raw.githubusercontent.com/triwayben/SoMaS/main/public/icons/icon-plate-128.png"
+      net.unraid.docker.icon="https://raw.githubusercontent.com/triwayben/SoMaS/main/public/icons/icon-tile-128.png"
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s \
   CMD wget -qO- http://127.0.0.1/ > /dev/null || exit 1
