@@ -3,12 +3,10 @@
   Unraid template for SoMaS.
 
   Copy this file to /boot/config/plugins/dockerMan/templates-user/ on the server, then use
-  Docker -> Add Container and pick "SoMaS" from the template list. The icon is the image's own
-  mark, served by the container itself, so no external hosting is involved — but Unraid does not
-  expand [IP]/[PORT:n] in the <Icon> field, so this file spells the address out. Replace
-  192.168.1.20:8080 below with your server's address and the port you map to container port 80,
-  or the tile stays blank: Unraid fetches the icon from the Unraid server itself, so that address
-  has to be the NAS's own LAN address.
+  Docker -> Add Container and pick "SoMaS" from the template list. The icon is a public https copy
+  of the mark, so it loads with no address to fill in: Unraid downloads a container's icon itself,
+  on the server, before it knows the container's address, and does not expand [IP]/[PORT:n] in an
+  icon it fetches. The image carries the same label, so this field is only a convenience.
 
   icon-plate-128.png is the variant with a light plate behind the mark, so the black house outline
   in the artwork stays visible on Unraid's dark dashboard.
@@ -27,7 +25,7 @@
   <Category>MediaApp:Music MediaServer:Music</Category>
   <WebUI>http://[IP]:[PORT:80]/</WebUI>
   <TemplateURL/>
-  <Icon>http://192.168.1.20:8080/icons/icon-plate-128.png</Icon>
+  <Icon>https://site-85f3afb0a77c4fbba90637ca3473c156.freebuff.page/icon-plate-128.png</Icon>
   <ExtraParams>--restart unless-stopped</ExtraParams>
   <PostArgs/>
   <CPUset/>
