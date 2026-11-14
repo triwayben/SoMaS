@@ -279,6 +279,23 @@ from template fields or from `net.unraid.docker.*` labels, and a container has t
 `net.unraid.docker.managed=dockerman` and the webui link, so a container started with a plain
 `docker run` gets its button on the Docker and Dashboard pages.
 
+### Updating: two images, two jobs
+
+The **app** is published, so a **Force Update** on the container pulls the newest build of
+`ghcr.io/triwayben/somas:latest`. Every push to `main` produces a matching image, and its tag list
+carries the commit SHA if you want to confirm what is actually running.
+
+The **guest proxy** is not published anywhere — build it where you keep the repo:
+
+```bash
+docker build -t somas-proxy deploy/proxy
+```
+
+Rebuild it whenever a change touches guests or settings sync. It holds the guest key, the guest
+switches and each account's saved layout, so an updated app alone will not gain any of those; keep
+its `/data` volume between builds or those three things start over. If you do not run the proxy, the
+app works as before and the guest features simply have nowhere to live.
+
 ### The icon needs a real address
 
 The image deliberately carries **no** `net.unraid.docker.icon` label. Unraid expands `[IP]` and
