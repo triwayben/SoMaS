@@ -4282,7 +4282,10 @@ button.group-row__main:disabled {
   transform: translateX(-50%);
   z-index: 60;
   max-width: 84%;
-  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px 10px 16px;
   border-radius: 999px;
   background: var(--accent);
   color: var(--accent-ink);
@@ -4291,6 +4294,32 @@ button.group-row__main:disabled {
   text-align: center;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
   animation: toastIn 0.22s ease;
+}
+
+.toast__text {
+  min-width: 0;
+}
+
+/* Quiet by design: the toast disappears on its own, this is only for reading a long line. */
+.toast__close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent-ink) 16%, transparent);
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.toast__close:hover,
+.toast__close:focus-visible {
+  opacity: 1;
 }
 
 @keyframes toastIn {

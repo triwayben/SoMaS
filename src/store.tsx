@@ -93,6 +93,7 @@ export interface AppActions {
   setFavorite: (uri: string, favorite: boolean, mediaType?: string, itemId?: string) => Promise<void>;
   setSleepTimer: (playerId: string, seconds: number) => Promise<void>;
   notify: (message: string) => void;
+  dismissToast: () => void;
   lastError?: string;
   toast?: string;
 }
@@ -183,7 +184,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const notify = useCallback((message: string) => {
     setToast(message);
     if (toastTimer.current) window.clearTimeout(toastTimer.current);
-    toastTimer.current = window.setTimeout(() => setToast(undefined), 2600);
+    // Long enough to read a sentence, and the toast can be dismissed before it goes on its own.
+    toastTimer.current = window.setTimeout(() => setToast(undefined), 4200);
+  }, []);
+
+  const dismissToast = useCallback(() => {
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    toastTimer.current = null;
+    setToast(undefined);
   }, []);
 
   const loadQueue = useCallback(async (queueId: string) => {
@@ -885,6 +893,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setFavorite,
       setSleepTimer,
       notify,
+      dismissToast,
       toast,
       lastError: undefined,
     }),
@@ -915,6 +924,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setFavorite,
       setSleepTimer,
       notify,
+      dismissToast,
       toast,
     ],
   );

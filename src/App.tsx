@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BottomNav } from "./components/BottomNav";
+import { Icon } from "./components/Icon";
 import { GroupSheet } from "./components/GroupSheet";
 import { PlayerBubble } from "./components/PlayerBubble";
 import { Sheet } from "./components/Sheet";
@@ -163,7 +164,19 @@ function Shell() {
           <GroupSheet playerId={groupFor} onClose={() => setGroupFor(null)} />
         ) : null}
 
-        {app.toast ? <div className="toast">{app.toast}</div> : null}
+        {app.toast ? (
+          <div className="toast" role="status">
+            <span className="toast__text">{app.toast}</span>
+            <button
+              className="toast__close"
+              type="button"
+              aria-label="Dismiss"
+              onClick={app.dismissToast}
+            >
+              <Icon name="x" size={12} />
+            </button>
+          </div>
+        ) : null}
       </div>
     </NavContext.Provider>
   );
